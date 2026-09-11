@@ -1608,6 +1608,691 @@ Skill 层的 UI 嵌入逻辑我现在想清楚了：不是独立 Skill 服务，
 _**Agent (gpt-5.6-sol)**_
 
 <tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+现在更新 README，把第 4 轮落盘：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+The string to replace was not found in the file.
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+The string to replace was not found in the file.
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+`04-数据模型.md` 已完成。同时完成了：
+
+- ✅ RFC-0008 三层结构落地（`RuleRepr` / `RuleSemantic` / `RuleExecution` → `codeNSOrg` / `codeSemantic` / `RuleArtifact`）
+- ✅ 元数据域重命名（`DomainType` / `ObjectType` / `Attribute`）
+- ✅ Skill 层重构（移除独立服务，前端 MCP Client + UI 嵌入卡片）
+- ✅ 编译产物落库（`rule_artifact.compiled_code`）
+- ✅ 5 个 Flyway migration 规划
+
+---
+
+## 第 5 轮：技术模型
+
+### 第一步：AI 向你提澄清问题
+
+技术模型回答"**用哪些技术实现**"。在写 `pom.xml`、`package.json`、`docker-compose.yml` 之前，我需要确认：
+
+1. **技术栈最终确认**：
+   - **后端**：Spring Boot 3.x + Java 17，可以吗？（你之前没有反对，但也没有明确确认）
+   - **前端**：TypeScript + React，这是明确的。但**UI 框架**用哪个？Ant Design / Material UI / Radix UI / 纯 Tailwind？
+   - **Groovy 执行**：MVP 用 `groovy-sandbox`（`org.codehaus.groovy:groovy-sandbox`），确认吗？
+   - **数据库连接池**：HikariCP（Spring Boot 默认），可以吗？
+
+2. **MCP Server 位置**：
+   - MCP Server 是**嵌入在 orule-server 进程内**（同一 Spring Boot 应用），还是**独立部署**？
+   - [推断 高] 你说的"嵌入式"应该是指 MCP Server 作为 `orule-server` 的一个接口模块，不是独立进程
+
+3. **本地 Skill 的部署形态**：
+   - 无独立 Skill 服务（你已决策），但 LLM 调用在哪里做？
+   - **方案 A**：前端 TS 直接调用 OpenAI API（前端有 API Key）
+   - **方案 B**：前端通过 `orule-server` 代理调用（API Key 在服务端，安全性更好）
+   - 你倾向哪个？
+
+4. **[OPEN-Q16]** `code1..code5` 扩展形态具体指哪些？
+   - 目前只是占位。典型候选：`DSL_XML`（DMN）、`DSL_JSON`（简化结构化）、`PSEUDO_CODE`（伪代码）
+   - 或者干脆去掉这 5 个字段，改成**可扩展的 JSON 字段**（`extension_map`）？
+
+5. **[OPEN-Q17]** `owner_code` 是否强制校验 ObjectType 存在？
+   - 强制校验 → 保存规则时 ObjectType 必须存在
+   - 弱校验 → 只记录 code，不强制外键（方便临时测试）
+   - 你的选择？
+
+6. **[OPEN-Q19]** `RuleSetArtifact` MVP 是否做？
+   - 做 → 需要打包逻辑（Groovy JAR / JS Bundle）
+   - 不做 → MVP 只做到 `RuleArtifact` 层，单条规则发布
+
+---
+
+_**User**_
+
+1、Attribute（字段）改成 AttributeType（字段）\n  2、─ Function（函数库）改成 ─ FunctionLib（函数库） \n 3、enum_def ,function_def ->enum_type, function_type \n 4、4.8 DomainMeta 持久化映射 改成 4.8 DomainType 持久化映射  其它类似，和概念模型尽量保持一致  \n 5、 [OPEN-Q16] code1..code5 扩展形态具体指哪些形态？（目前只是占位，需明确）  占位，方便扩展，在元数据配置使用哪个字段
+
+
+
+[OPEN-Q17] 规则归属 owner_code 是否需要强制校验（校验 ObjectType 存在）？
+--答：需要
+
+
+[OPEN-Q18] rule_set_artifact.artifact_uri 是存路径还是存内容？（存内容则 JSON/TEXT；存路径则 URL）
+--答：存URL，这里是一个扩展点，可以是一个doc服务器上，也可以是放在本地服务器，存的都是相对URL，全局配置文件配置文件服务器的根路径，默认是本地路径  
+
+
+[OPEN-Q19] RuleSetArtifact MVP 是否要做？（还是 MVP 只做到 RuleArtifact 层？）--答：需要
+
+---
+
+_**Agent (gpt-5.6-sol)**_
+
+收到全部答案。快速整理：
+
+- `Attribute` → `AttributeType`（表：`attribute_type`）
+- `Function` → `FunctionLib`（表：`function_lib`）
+- `enum_def` → `enum_type`（表：`enum_type`）
+- `function_def` → `function_type`（表：`function_type`）
+- `code1..code5`：保持占位，元数据配置指定用哪个字段
+- `owner_code`：**强制校验** ObjectType 存在
+- `artifact_uri`：存**相对 URL**，全局配置根路径（本地或 DOC 服务器）
+- `RuleSetArtifact`：**MVP 需要做**
+
+立即更新 `04-数据模型.md`：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+需要对整篇文档做批量重命名。我分批处理：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+The string to replace was not found in the file.
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+The string to replace was not found in the file.
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+The string to replace was not found in the file.
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+The string to replace was not found in the file.
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+数据模型全部修订完成。更新摘要：
+
+```
+✅ Attribute → AttributeType（表：attribute_type）
+✅ Function → FunctionLib（表：function_lib）
+✅ enum_def → enum_type（表：enum_type）
+✅ DomainMeta 映射 → DomainType 映射（类名对齐）
+✅ code1..code5 保持占位 + RuleForm 配置决定启用字段
+✅ owner_code 强制校验 ObjectType 存在
+✅ artifact_uri 存相对 URL + 全局根路径拼接
+✅ RuleSetArtifact MVP 需要做
+✅ RuleForm.form_code 支持 'code_1'..'code_5'
+✅ V1 migration 表名对齐：attribute_type / enum_type / function_lib
+```
+
+`04-数据模型.md` 已完整落地 574 行，所有命名与概念模型一致。
+
+---
+
+## 技术模型澄清问题（接第 5 轮）
+
+数据模型已定，现在进入**技术模型**——回答"用哪些技术实现"。在你确认之前，我先把剩余的澄清问题整理出来：
+
+1. **后端技术栈**：Spring Boot 3.x + Java 17，可以吗？
+
+2. **前端 UI 框架**：Ant Design / Material UI / Radix UI / 纯 Tailwind，选哪个？
+   - Ant Design = 组件最全，但样式定制成本高
+   - Material UI = Google 风格，生态好
+   - Radix UI = 底层 headless，样式完全自定义
+   - 纯 Tailwind = 最轻，但要自己搭组件库
+
+3. **Groovy 沙箱**：用 `groovy-sandbox`（`org.codehaus.groovy:groovy-sandbox`），确认吗？
+
+4. **MCP Server 位置**：嵌入 `orule-server` 进程内（同一 Spring Boot），还是独立部署？
+
+5. **LLM 调用**：前端 TS 直接调 OpenAI（前端有 Key），还是前端通过 `orule-server` 代理（Key 在服务端）？
+
+请回我 5 个决策，确认后我立即写 `05-技术模型.md`。
+
+---
+
+_**User**_
+
+
+后端技术栈：Spring Boot 3.x + Java 17，可以吗？  答：java21
+
+前端 UI 框架：Ant Design / Material UI / Radix UI / 纯 Tailwind，选哪个？ 答：Ant Design 
+
+Ant Design = 组件最全，但样式定制成本高
+Material UI = Google 风格，生态好
+Radix UI = 底层 headless，样式完全自定义
+纯 Tailwind = 最轻，但要自己搭组件库
+Groovy 沙箱：用 groovy-sandbox（org.codehaus.groovy:groovy-sandbox），确认吗？ 答：确定
+
+MCP Server 位置：嵌入 orule-server 进程内（同一 Spring Boot），还是独立部署？ 答：两种方式都支持，本地方式在进程内
+
+LLM 调用：前端 TS 直接调 OpenAI（前端有 Key），还是前端通过 orule-server 代理（Key 在服务端）？答：直接使用本地cursor或opencode的环境，是在这些环境配置key 
+
+---
+
+_**Agent (gpt-5.6-sol)**_
+
+收到全部答案：
+
+- Java 21（不是 17）
+- Ant Design
+- groovy-sandbox（确认）
+- MCP 两种方式都支持（进程内 + 独立部署）
+- LLM 前端直调 Cursor/OpenCode 环境配置 Key
+
+立即写 `05-技术模型.md`：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\05-技术模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+更新 README：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+`05-技术模型.md` 已完成。更新摘要：
+
+```
+✅ Java 21（不是 17）
+✅ Ant Design 5.x + React 18 + TypeScript 5 + Zustand
+✅ groovy-sandbox + 自定义白名单
+✅ MCP 双模式（进程内 + 独立 Node.js orule-mcp-server）
+✅ LLM 前端直调 Cursor/OpenCode 环境（import.meta.env / window.__ORULE_LLM_KEY__）
+✅ GraalJS 嵌入 SimpleTS 编译器（TypeScript Compiler API 打包为 JS）
+✅ 三 DB profile + Docker Compose
+```
+
+---
+
+**文档进度**：
+
+| 章节 | 状态 |
+|------|------|
+| 01-边界与目标 | ✅ 定稿 |
+| 02-用例视图 | ✅ 定稿 |
+| 03-逻辑视图 | ✅ 定稿 |
+| 04-数据模型 | ✅ 定稿 |
+| 05-技术模型 | ✅ 定稿 |
+| 06-运行视图 | 待写 |
+| 07-部署视图 | 待写 |
+| 08-开发视图 | 待写 |
+| 09-收口与风险 | 待写 |
+
+---
+
+**下一步你想怎么推进**？
+
+- **继续下一章**（06-运行视图）
+- **回头 review** 已完成的章节
+- **开始写代码**（基于当前文档）
+- **其他**
+
+---
+
+_**User**_
+
+LLM Client：OpenAI / Anthropic（前端直调，后端只做代理）不正确。我期望的是：
+
+“自然语言生成规则”这个东西，它应该是一个独立的 UI 卡片，估计也是个独立的 UI 前端，然后嵌到里面去。
+
+这样的话，相当于这个前端未来既可以访问本地的 Agent 环境，也可以访问服务器上的 Agent 环境。
+
+所以前端我估计需要独立两个。然后 LLM 就是后端，没有什么“后端对什么做什么代理”，这个说法是错的  /n  2、   ├── execution/   # Execution / ExecutionLog  规则执行是不是要搞一个独立的服务啊？不应该是使用同一个后台，感觉这个要分开。
+
+对不对？建议是独立出来吧，独立成一个服务吧。
+
+---
+
+_**Agent (gpt-5.6-sol)**_
+
+收到，两大修正方向很重要：
+
+1. **LLM = 后端能力**（不是"代理"语义）：
+   - 后端或独立进程直接调 LLM
+   - 前端 UI 卡片是 **Skill 调用的 UI 容器**，可访问本地（Cursor/OpenCode）和远程（服务器）两种环境
+   - 两个独立前端：`orule-web`（主控制台） + **`orule-llm-studio`**（LLM 聊天面板，可独立部署）
+   
+2. **规则执行独立成服务**：
+   - `orule-server`（管控面：管理元数据/规则/制品）
+   - **`orule-runtime`（执行面：规则执行 + 执行日志）**
+   - 两者通过内部协议通信（HTTP/gRPC）
+
+让我重写 `05-技术模型.md` 这两个章节：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\05-技术模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+明白架构转向，我重写 5.1 和 5.2 章节。这是大重写，但更精准：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\05-技术模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+更新 README 与 ADR：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+现在补充两个 ADR 把这些决策沉淀：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\adr\ADR-007-四进程架构.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\adr\ADR-008-LLM服务端原生双前端嵌入.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+全部修订完成。更新摘要：
+
+```
+✅ LLM 修正：服务端原生调用（orule-llm），前端 UI 卡片 by iframe 嵌入
+✅ 双前端架构：orule-web（主控台） + orule-llm-studio（独立 LLM 聊天面板）
+✅ 执行独立服务：orule-runtime（管控/执行物理分离）
+✅ 4 进程架构：server / runtime / llm / common
+✅ Groovy 沙箱限定在 orule-runtime（Skill 仍然是直接用本地环境，沙箱不适用）
+✅ 服务间通信矩阵已明确（OpenFeign）
+✅ 补充 ADR-007（四进程架构）+ ADR-008（LLM 服务端原生 + 双前端嵌入）
+```
+
+---
+
+**架构全景关键变化**：
+
+| 项 | 旧表述（v0.5 草稿） | 新表述（v0.5 定稿） |
+|----|---------------------|---------------------|
+| 后端进程数 | 1（orule-server 含执行） | **4**（server / runtime / llm / common） |
+| 前端应用数 | 1（orule-web） | **2**（orule-web + orule-llm-studio） |
+| LLM 调用 | "前端直调 或 后端代理" | **服务端原生**（单一路径） |
+| LLM UI | Skill 卡片嵌在 orule-web | **iframe 嵌入**（独立前端） |
+| Groovy 沙箱 | orule-server 内 | **orule-runtime 内**（独立安全边界） |
+
+**前后端架构**：
+
+```
+[浏览器]
+  ├─ orule-web (主控台, 5173)
+  │     └─ <iframe> orule-llm-studio (LLM 卡片, 5174)
+  │
+  └─ orule-llm-studio (5174, 独立前端)
+
+[后端 4 进程]
+  ├─ orule-server (8080): CRUD + 编译 + MCP（进程内）
+  ├─ orule-runtime (8081): 沙箱执行 + ExecutionLog
+  ├─ orule-llm (8082): OpenAI/Anthropic 后端原生调用
+  └─ orule-common: 共享 JAR
+
+[Agent 接入]
+  └─ Cursor/OpenCode → orule-mcp-server (Node.js, 3001) → orule-server
+
+[DB]
+  MySQL/PG/H2 (三 Profile) — orule-server + orule-runtime 共用
+```
+
+---
+
+下一步你想怎么推进？
+- **继续 06-运行视图**
+- **回头 review 5 轮文档**
+- **开始写代码**
+- **其他**
+
+---
+
+_**User**_
+
+1、LLM 接入方式    LLM 调用位置这个理解错了。当前我们第一阶段是调用本地的 Cursor 或者是 OpenCode 的 Agent 环境，所以没有什么后台，更不存在所谓的“统一后台原生调用”。所以 "orule-llm 这个服务是不存在的   \n  2、 浏览器 2：LLM Studio（独立前端，可选）  --这个页面建议使用electron来做一下（本地可能可能要独立localserver）
+
+---
+
+_**Agent (gpt-5.6-sol)**_
+
+彻底理解，这次完全改对了：
+
+1. **`orule-llm` 服务不存在** — LLM 直接调本地 Cursor/OpenCode Agent 环境（通过 MCP 协议）
+2. **`orule-llm-studio` = Electron 桌面应用**，不是浏览器页面，有本地 server
+
+那架构退化为 **3 进程**（去掉 `orule-llm`），LLM Studio 是独立的 Electron 客户端：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\05-技术模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+同步更新 ADR-008：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\adr\ADR-008-LLM服务端原生双前端嵌入.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+更新 README：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+全部修订完成。这次彻底理清了：
+
+```
+✅ 去掉 orule-llm 服务（Phase 1 不存在）
+✅ LLM = 本地 Cursor/OpenCode Agent 环境（MCP 协议）
+✅ orule-llm-studio = Electron 桌面应用 + 本地 Local Server（端口 5174）
+✅ 后端 3 进程：server / runtime / common
+✅ orule-llm-studio 本地安装（不进 Docker）
+✅ Phase 2 可扩展独立 LLM 服务（供无 Cursor/OpenCode 的机器）
+✅ 更新 ADR-008
+```
+
+---
+
+**Phase 1 最终架构**：
+
+```
+同一台开发机器：
+
+  ┌──────────────────────────────────────────┐
+  │ 浏览器（orule-web，5173）                  │
+  │  └── <iframe> http://localhost:5174     │
+  └──────────────────────────────────────────┘
+                    │
+  ┌─────────────────┴───────────────────────┐
+  │  Electron（orule-llm-studio，5174）    │
+  │  ├── Local Server（Express REST）       │
+  │  └── Main Process → MCP IPC            │
+  └─────────────────┬───────────────────────┘
+                    │ MCP
+  ┌─────────────────┴───────────────────────┐
+  │  Cursor / OpenCode（本地 Agent）        │
+  │  └── 已配置 LLM API Key                 │
+  └──────────────────────────────────────────┘
+
+Docker 容器：
+  orule-server (8080) + orule-runtime (8081) + MySQL
+```
+
+---
+
+**下一步**：
+- 继续 06-运行视图
+- 开始写代码（从脚手架开始）
+- 其他
+
+---
+
+_**User**_
+
+继续 06-运行视图
+
+---
+
+_**Agent (gpt-5.6-sol)**_
+
+好，读一下当前文档状态后开写：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\05-技术模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\04-数据模型.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
 <summary>Tool use: **edit_file_v2**</summary>
 Status: **loading**
 
