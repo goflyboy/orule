@@ -1,0 +1,4 @@
+packages:
+  - 'orule-web'
+  - 'orule-llm-studio'
+  - 'skills/*'

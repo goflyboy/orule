@@ -1,0 +1,42 @@
+# Java
+target/
+*.class
+*.jar
+*.war
+.mvn/
+.m2/
+
+# Node
+node_modules/
+dist/
+out/
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.cursor/
+.DS_Store
+
+# 本地数据
+data/
+*.local.yml
+*.local.yaml
+.env
+.env.local
+
+# 日志
+logs/
+*.log
+
+# OS
+Thumbs.db
+
+# SpecStory（保留）
+.specstory/
+
+# Agents
+.agents/
