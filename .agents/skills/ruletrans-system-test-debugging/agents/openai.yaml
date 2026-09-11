@@ -1,0 +1,4 @@
+interface:
+  display_name: "RuleTrans System Test Debugging"
+  short_description: "Guide RuleTrans system test fixes"
+  default_prompt: "Use $ruletrans-system-test-debugging to debug a failing RuleTrans system test without changing the wrong layer."

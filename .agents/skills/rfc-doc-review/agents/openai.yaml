@@ -1,0 +1,4 @@
+interface:
+  display_name: "RFC 文档审查"
+  short_description: "结合 RFC、SpecStory 人工修正和代码审查设计文档。"
+  default_prompt: "Use $rfc-doc-review 审查并修订这个 RFC 文档，修改前先把原文档备份为带“原文档”字样的文件。"
