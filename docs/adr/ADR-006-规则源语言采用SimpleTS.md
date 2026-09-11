@@ -8,7 +8,7 @@
 
 ## 背景
 
-ADR-003 已确定中间态 DSL 采用 **TS-AST / JS 语义层**。但 TS-AST 是结构化 JSON，对业务人员 / 工程师**写规则的认知负担仍然偏高**；同时 LLM 直出 TS-AST 易错、不稳定。
+ADR-003 已确定语义层采用 **SimpleTS**（业务写规则的"源语言"），TS-AST 仅作为运行期 IR（编译内部产物）。本 ADR 进一步明确 SimpleTS 的具体形态与设计原则。
 
 业务人员实际写出来的代码形态更像：
 
@@ -26,7 +26,7 @@ if (customer.tier == CustomerTier.VIP && order.totalAmount >= 200) {
 |------|------|------|
 | A：完整 TS 脚本 + 沙箱执行 | 上手最快（写啥跑啥） | 安全风险高（`eval`/`process`）；无法静态分析；不支持多形态 |
 | B：DMN XML / FEEL | 标准化、可审计 | 表达力弱，业务人员学习成本高，与 TS-AST 体系脱节 |
-| C：**SimpleTS（TS 安全子集）+ DomainMeta**（本方案） | 业务认知零成本；编译期拒绝复杂写法；与 TS-AST 天然衔接；支持多引擎 codegen | 需要写一套 parser 骨架；元数据维护成本 |
+| C：**SimpleTS（TS 安全子集）+ DomainMeta**（本方案） | 业务认知零成本；编译期拒绝复杂写法；作为唯一语义层中间态支持星型转换；支持多引擎 codegen | 需要写一套 parser 骨架；元数据维护成本 |
 | D：纯表达式语言（CEL / Spring EL） | 表达力强、有沙箱 | 与 TS-AST 体系脱节；与"JS 生态"心智冲突 |
 
 ## 决策
@@ -35,8 +35,8 @@ if (customer.tier == CustomerTier.VIP && order.totalAmount >= 200) {
 
 - **SimpleTS 源码** = TS 的最小安全子集，看上去几乎就是 TS。
 - **DomainMeta** = 入口变量 + 实体 + 枚举的元数据，封闭作用域。
-- **编译器** = 用 TypeScript Compiler API 做白名单剪枝 + 静态校验，产出 SimpleTS-AST，再转换为 TS-AST。
-- SimpleTS-AST / TS-AST 不落业务库；真正落库的是**多引擎产物**（Groovy / DRL）与 TS-AST，决策日志可追溯。
+- **编译器** = 用 TypeScript Compiler API 做白名单剪枝 + 静态校验，产出 SimpleTS-AST。
+- SimpleTS-AST / TS-AST 是内部表示，不落业务库；真正落库的是**多引擎产物**（Groovy / DRL），决策日志可追溯。
 
 ## 设计原则
 
@@ -48,7 +48,7 @@ if (customer.tier == CustomerTier.VIP && order.totalAmount >= 200) {
 
 ## 与既有 ADR 的关系
 
-- **不替代 ADR-003**：ADR-003 定义的是**中间态表示**；SimpleTS 是其**开发期源码形态**。SimpleTS 编译产物就是 TS-AST，链路完全一致。
+- **配合 ADR-003（修正版）/ ADR-009**：SimpleTS = 唯一的语义层中间态（面向业务、面向 LLM）；TS-AST = 运行期 IR（内部编译产物）。
 - **不替代 ADR-002**：执行引擎仍是双引擎（Groovy + cruleengine），SimpleTS 编译到两端。
 - **不替代 ADR-005**：DomainMeta 持久化在 orule 的元数据库，与规则绑定校验。
 
@@ -58,6 +58,7 @@ if (customer.tier == CustomerTier.VIP && order.totalAmount >= 200) {
 - 新增类型：`packages/rule-meta/`（DomainMeta + Zod schema）
 - 编辑器：VS Code / Web 编辑器需要"SimpleTS 语法高亮 + 实时校验"插件
 - 文档：`docs/dsl/SimpleTS.md` 作为权威定义
+- LLM：MCP / LLM Studio 接口的"规则生成"工具改为接受 NL + DomainMeta，产出 **SimpleTS 源码**
 - LLM：MCP 接口的"规则生成"工具改为接受 SimpleTS 源码 + DomainMeta，产出 SimpleTS-AST
 
 ## 不在范围内
@@ -72,8 +73,11 @@ if (customer.tier == CustomerTier.VIP && order.totalAmount >= 200) {
 
 1. **业务字段边界** → DomainMeta 加 `range` / 约束，校验与运行期双重把关。
 2. **元数据漂移** → 规则加载时强制 `revalidate(meta)`。
-3. **LLM 直出 JSON** → MCP 入口只接受 SimpleTS 源码或 TS-AST，二者均需过 schema。
+3. **LLM 直出 SimpleTS 源码** → MCP / LLM Studio 入口只接受 SimpleTS 源码；产物需过 schema 校验。
 
 ## 决策摘要
 
-> 用 SimpleTS 把"写规则的体验"和"运行规则的体验"打通：开发期像写 TS，运行期仍走 TS-AST + 多引擎 + 可追溯。复杂度集中在编译器，业务层零负担。
+> SimpleTS = 唯一的语义层中间态（面向业务/工程师/ LLM）。
+> TS-AST = 运行期 IR（内部编译产物，对外不可见）。
+> 所有视图转换以 SimpleTS 为中心（参见 ADR-009）。
+> 复杂度集中在编译器，业务层零负担。

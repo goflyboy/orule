@@ -1,0 +1,84 @@
+# RFC 索引
+
+> orule 项目的所有 RFC 提案集中索引。
+
+## 阶段划分
+
+| 阶段 | RFC 范围 | 主题 |
+|------|----------|------|
+| **S0 基础设施** | RFC-0011 ~ RFC-0013 | Monorepo / Maven / 一键启动 |
+| **S1 数据层** | RFC-0014 ~ RFC-0015 | Flyway 迁移 / 元数据 API |
+| **S2 规则层** | RFC-0016 ~ RFC-0017 | 规则状态机 / ArtifactStorage |
+| **S3 编译层** | RFC-0018 ~ RFC-0019 | SimpleTS 解析 / SimpleTS→Groovy |
+| **S4 执行层** | RFC-0020 ~ RFC-0021 | Groovy 沙箱 / 批量执行 |
+| **S5 测试+LLM** | RFC-0022 ~ RFC-0023 | 测试用例 / NL→SimpleTS |
+| **S6 前端** | RFC-0024 ~ RFC-0025 | 多视图编辑器 / 列表监控 |
+| **S7 MCP+观测** | RFC-0026 ~ RFC-0027 | MCP Tools / 可观测性 |
+| **S8 验收** | RFC-0028 ~ RFC-0029 | E2E 测试 / Docker Compose |
+| **S9 演示** | RFC-0030 | MVP 演示 |
+
+## 总览
+
+[RFC-0000 MVP 阶段 RFC 总览](RFC-0000-MVP-RFC总览.md)
+
+## S0 基础设施
+
+- [RFC-0011 Monorepo 仓库初始化](RFC-0011-Monorepo仓库初始化.md) — DRAFT
+- [RFC-0012 Maven 多模块骨架](RFC-0012-Maven多模块骨架.md) — DRAFT
+- [RFC-0013 本地一键启动脚本](RFC-0013-本地一键启动脚本.md) — DRAFT
+
+## S1 数据层
+
+- [RFC-0014 数据库 Flyway 迁移基线（V1~V5）](RFC-0014-数据库Flyway迁移基线.md) — DRAFT
+- [RFC-0015 元数据域 CRUD API](RFC-0015-元数据域CRUD-API.md) — DRAFT
+
+## S2 规则层
+
+- [RFC-0016 规则域 + 状态机 API](RFC-0016-规则域状态机API.md) — DRAFT
+- [RFC-0017 ArtifactStorage 接口 + LocalStorage 实现](RFC-0017-ArtifactStorage接口LocalStorage实现.md) — DRAFT
+
+## S3 编译层
+
+- [RFC-0018 SimpleTS 解析器（白名单剪枝 + 字段校验）](RFC-0018-SimpleTS解析器.md) — DRAFT
+- [RFC-0019 SimpleTS → Groovy 代码生成器](RFC-0019-SimpleTS转Groovy代码生成器.md) — DRAFT
+
+## S4 执行层
+
+- [RFC-0020 Groovy 沙箱 + 单条规则执行器](RFC-0020-Groovy沙箱单条规则执行器.md) — DRAFT
+- [RFC-0021 批量规则执行 + RuleSetArtifact](RFC-0021-批量规则执行RuleSetArtifact.md) — DRAFT
+
+## S5 测试 + LLM
+
+- [RFC-0022 测试用例 + 通过率统计](RFC-0022-测试用例通过率统计.md) — DRAFT
+- [RFC-0023 NL → SimpleTS LLM 调用 + Schema 注入](RFC-0023-NL转SimpleTS-LLM调用.md) — DRAFT
+
+## S6 前端
+
+- [RFC-0024 多视图编辑器（NL / SimpleTS / 表格）](RFC-0024-多视图编辑器.md) — DRAFT
+- [RFC-0025 orule-web 列表/详情/监控页面](RFC-0025-orule-web列表详情监控页面.md) — DRAFT
+
+## S7 MCP + 可观测性
+
+- [RFC-0026 进程内 MCP 服务（MCP Tools）](RFC-0026-进程内MCP服务.md) — DRAFT
+- [RFC-0027 可观测性（日志 + Trace + Actuator + Micrometer）](RFC-0027-可观测性日志TraceActuator.md) — DRAFT
+
+## S8 验收
+
+- [RFC-0028 端到端集成测试（MVP 验收用例）](RFC-0028-端到端集成测试MVP验收.md) — DRAFT
+- [RFC-0029 Docker Compose MVP 部署](RFC-0029-Docker-Compose-MVP部署.md) — DRAFT
+
+## S9 演示
+
+- [RFC-0030 MVP 验收 + 演示 Demo](RFC-0030-MVP验收演示.md) — DRAFT
+
+## 状态说明
+
+| 状态 | 含义 |
+|------|------|
+| DRAFT | 提案阶段，尚未评审 |
+| REVIEWING | 团队评审中 |
+| APPROVED | 已批准，待实现 |
+| IMPLEMENTING | 实现中 |
+| DONE | 已完成 |
+| REJECTED | 已拒绝 |
+| SUPERSEDED | 已被新 RFC 取代 |
