@@ -10266,20 +10266,240 @@ _**Agent (gpt-5.6-sol)**_
 1. **不修改 orule-server 源码**（不动 `application.yml`，H2 Console 已经启用）。
 2. **保证 server 在跑**：如果没启动，自动启动；如果启动了，跳过。
 3. **打开浏览器**到 `/h2-console`，连接信息从配置里提取常量。
-4. **不
+4. **不自动 stop**，避免用户还在浏览器里看就被杀了——保留显式 `stop` 的方式。
+
+下面开始改：
 
 _**Agent (gpt-5.6-sol)**_
 
 <tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
-<summary>Tool use: **edit_file_v2**</summary>
-Status: **loading**
+<summary>Tool use: **edit_file_v2** • Edit file: D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\scripts\dev-start.ps1</summary>
 
 </details></tool-use>
 
 _**Agent (gpt-5.6-sol)**_
 
 <tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
-<summary>Tool use: **edit_file_v2**</summary>
-Status: **loading**
+<summary>Tool use: **edit_file_v2** • Edit file: D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\scripts\dev-start.ps1</summary>
 
 </details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+现在加 `Invoke-DbConsole` 函数。先插到 `Invoke-Stop` 后面、`Show-Help` 前面：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\scripts\dev-start.ps1</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+更新 help 文本：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\scripts\dev-start.ps1</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+更新 switch 分发：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\scripts\dev-start.ps1</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+跑一下语法/帮助测试：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2** • Run command: cd &#39;D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule&#39;; powershell -NoProfile -ExecutionPolicy Bypass -File &#39;.\scripts\dev-start.ps1&#39; help</summary>
+```bash
+cd 'D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule'; powershell -NoProfile -ExecutionPolicy Bypass -File '.\scripts\dev-start.ps1' help
+```
+
+```
+orule one-shot launcher (Windows PowerShell)
+
+Usage:
+  .\scripts\dev-start.ps1 [-Command <command>] [-ServerPort <port>] [-RuntimePort <port>]
+
+Commands:
+  start       start server + runtime (default)
+  server      only server
+  runtime     only runtime
+  check       dependency check
+  stop        stop all spring-boot:run processes
+  db-console  open H2 web console in default browser (auto-start server if needed)
+  help        show this help
+
+```
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+help 渲染正常。再做一次"自动启动 server → 打开浏览器"的最小烟测（不真正拉浏览器，只验证分支判断）：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2** • Run command: cd &#39;D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule&#39;; powershell -NoProfile -Command &#34;&amp; { try { (Invoke-WebRequest -Uri &#39;http://localhost:8080/actuator/health&#39; -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop).StatusCode } catch { &#39;NOT_RUNNING&#39; } }&#34;</summary>
+```bash
+cd 'D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule'; powershell -NoProfile -Command "& { try { (Invoke-WebRequest -Uri 'http://localhost:8080/actuator/health' -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop).StatusCode } catch { 'NOT_RUNNING' } }"
+```
+
+```
+200
+
+```
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+server 当前已经在 200 跑着，正好覆盖"已运行"分支。`Start-Process` 会真打开浏览器，先用 `-WhatIf` 模式确认逻辑走对：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2** • Run command: cd &#39;D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule&#39;; powershell -NoProfile -ExecutionPolicy Bypass -Command &#34;&amp; { function Log($msg) { Write-Host \&#34;[$(Get-Date -Format &#39;HH:mm:ss&#39;)] $msg\&#34; -ForegroundColor Green }; function Test-ServerReachable { param([int]\$Port) try { (Invoke-WebRequest -Uri \&#34;http://localhost:\$Port/actuator/health\&#34; -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop).StatusCode -eq 200 } catch { \$false } }; \$Port=8080; \$jdbcUrl=&#39;jdbc:h2:mem:orule;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1&#39;; if (Test-ServerReachable -Port \$Port) { Log &#39;[OK] orule-server already running on port \$Port&#39; } else { Log &#39;would call Invoke-StartServer&#39; }; Log \&#34;opening H2 Console in your default browser...\&#34;; Log \&#34;  URL:    http://localhost:\$Port/h2-console\&#34;; Log \&#34;  JDBC:   \$jdbcUrl\&#34;; Log &#39;  User:   sa   (Password: &lt;empty&gt;)&#39; }&#34;</summary>
+```bash
+cd 'D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule'; powershell -NoProfile -ExecutionPolicy Bypass -Command "& { function Log($msg) { Write-Host \"[$(Get-Date -Format 'HH:mm:ss')] $msg\" -ForegroundColor Green }; function Test-ServerReachable { param([int]\$Port) try { (Invoke-WebRequest -Uri \"http://localhost:\$Port/actuator/health\" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop).StatusCode -eq 200 } catch { \$false } }; \$Port=8080; \$jdbcUrl='jdbc:h2:mem:orule;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1'; if (Test-ServerReachable -Port \$Port) { Log '[OK] orule-server already running on port \$Port' } else { Log 'would call Invoke-StartServer' }; Log \"opening H2 Console in your default browser...\"; Log \"  URL:    http://localhost:\$Port/h2-console\"; Log \"  JDBC:   \$jdbcUrl\"; Log '  User:   sa   (Password: <empty>)' }"
+```
+
+```
+����λ�� ��:1 �ַ�: 26
++ \ -ForegroundColor Green }; function Test-ServerReachable { param([in ...
++                          ~
+����ʽ������а�������ı�ǡ�}����
+����λ�� ��:1 �ַ�: 72
++ ... undColor Green }; function Test-ServerReachable { param([int]\) try { ...
++                                                                  ~
+���������ǰ�����ѡ��ʼֵ�趨�����ʽ�ı��������б�(�Զ��ŷָ�)��
+����λ�� ��:1 �ַ�: 72
++ ... undColor Green }; function Test-ServerReachable { param([int]\) try { ...
++                                                                  ~
+���������б���ȱ�١�)����
+����λ�� ��:1 �ַ�: 637
++ ... -console\; Log " JDBC: \\; Log '  User:   sa   (Password: <empty>)' }
++                                                                         ~
+����ʽ������а�������ı�ǡ�}����
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : UnexpectedToken
+ 
+
+```
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+转义问题。重写一份，把脚本放临时文件里执行：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\scripts\_db-console-smoke.ps1</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2** • Run command: cd &#39;D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule&#39;; powershell -NoProfile -ExecutionPolicy Bypass -File &#39;.\scripts\_db-console-smoke.ps1&#39;</summary>
+```bash
+cd 'D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule'; powershell -NoProfile -ExecutionPolicy Bypass -File '.\scripts\_db-console-smoke.ps1'
+```
+
+```
+[11:10:13] [OK] orule-server already running on port 8080
+[11:10:13] opening H2 Console in your default browser...
+[11:10:13]   URL:    http://localhost:8080/h2-console
+[11:10:13]   Driver: org.h2.Driver
+[11:10:13]   JDBC:   jdbc:h2:mem:orule;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+[11:10:13]   User:   sa   (Password: <empty>)
+[11:10:13] Start-Process available: Microsoft.PowerShell.Management
+[11:10:13] (skipping actual browser launch in this smoke test)
+
+When you're done, run:  .\scripts\dev-start.ps1 stop
+
+```
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+逻辑走通：
+
+- `Test-ServerReachable` 检测到 server 在跑（HTTP 200）
+- 输出 H2 Console 入口信息
+- `Start-Process` 命令可用
+
+清理临时脚本：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2** • Run command: Remove-Item &#39;D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\scripts\_db-console-smoke.ps1&#39; -Force</summary>
+```bash
+Remove-Item 'D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\scripts\_db-console-smoke.ps1' -Force
+```
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+最后，把 README 里那一节 H2 Console 步骤简化成一行命令：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+完成。改动汇总：
+
+### `scripts/dev-start.ps1`
+
+1. 头部注释 + `ValidateSet` + `switch` 三处增加 `db-console` 名字。
+2. 新增 `Test-ServerReachable`：用 `/actuator/health` 探测 server 是否在跑。
+3. 新增 `Invoke-DbConsole`：
+   - server 没在跑 → 自动调用 `Invoke-StartServer`（不阻塞，spawn 完直接 return，后续的 Wait-Health 已内置）。
+   - 打印登录信息（URL / Driver / JDBC URL / User / Password）。
+   - `Start-Process $h2Url` 打开默认浏览器；headless 环境失败时给出 WARN 提示手动打开。
+   - 最后打印 `.\scripts\dev-start.ps1 stop` 收尾提示。
+4. `Show-Help` 帮助文案同步增加 `db-console` 一行。
+
+### `README.md`
+
+"本地数据库查看（orule-server）" 节顶部直接列出 **`.\scripts\dev-start.ps1 db-console`**，下面保留：
+- 行为说明（自动启动 server / 打开浏览器）
+- 登录表单表（Driver / JDBC URL / User / Password）
+- SQL 示例
+- `dev-start.ps1 stop` 收尾
+
+### 已验证
+
+- `.\scripts\dev-start.ps1 help` 正常输出新命令清单（exit 0）。
+- 用临时脚本复刻 `Test-ServerReachable` + `Invoke-DbConsole` 的"已运行"分支：检测到 200，输出登录信息，`Start-Process` 可用（仅跳过真开浏览器），全部通过。
+
+### 没做的事（保持现状）
+
+- 没改 `application.yml`，H2 Console 本来就是 `enabled: true`。
+- 没改 orule-server 任何源码。
+- 没在 `db-console` 里硬塞自动 stop —— 因为用户在浏览器里看的时候进程会被杀掉很反直觉，保留手动 `stop`。
+
+要不要顺手再做这两件可选的收尾：
+
+1. 在 `AGENTS.md` 加一节"脚本规约"，要求新增子命令必须 **幂等、可重复调用、不自动 stop**？
+2. 把 `h2Url` / `jdbcUrl` 从脚本里抽出来作为脚本顶部常量，并写注释提醒"改 `application.yml` 时同步修改这里"？
