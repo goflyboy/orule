@@ -124,7 +124,7 @@ public class SimpleTSParser {
 }
 ```
 
-### 3.3 DomainMeta（Java 版 — RFC-0031 同步）
+### 3.3 DomainMeta（Java 版 — RFC-0031/RFC-0032 同步）
 
 ```java
 package com.orule.dsl;
@@ -136,13 +136,15 @@ import java.util.List;
 /**
  * 领域元数据（与 docs/dsl/SimpleTS.md §7 DomainMeta 对应）。
  *
- * <p><b>RFC-0031 修订</b>：
+ * <p><b>RFC-0031 + RFC-0032 修订</b>：
  * <ul>
- *   <li>Field 的 type 改为 {@link Type}（5 个 Variant 之一），不再是 RFC-0031 之前的
+ *   <li>Type 系统为 4 个 Variant（RFC-0032）：PrimitiveType / ObjectRef / ListType / MapType。
+ *       <b>EnumType 已删除</b>，enum 视为 ObjectType.kind=ENUM 的特殊形态。</li>
+ *   <li>Field 的 type 改为 {@link Type}（4 个 Variant 之一），不再是 RFC-0031 之前的
  *       {@code sealed interface FieldType permits PrimitiveType, EntityRef, EnumRef}。</li>
- *   <li><b>删除顶层 {@code enums} 字段</b>：enum 定义完全内联在 {@code AttributeField.type}
- *       的 {@code EnumType.values} 中，无需独立的 enum_value 表（详见 RFC-0031 §3.1）。</li>
- *   <li>{@link ContextVar} 的 type 固定为 {@link com.orule.common.model.type.ObjectType}
+ *   <li><b>删除顶层 {@code enums} 字段</b>：enum 定义在 ObjectType.kind=ENUM 的 enumValues 中，
+ *       无需独立的 enum_value 表（详见 RFC-0032 §3.1）。</li>
+ *   <li>{@link ContextVar} 的 type 固定为 {@link com.orule.common.model.type.ObjectRef}
  *       （context 入口必须是对象引用，不能是 primitive / enum / list / map）。</li>
  * </ul>
  *
@@ -150,42 +152,63 @@ import java.util.List;
  */
 public record DomainMeta(
         String id,
-        List<EntityDef> entities,
+        List<ObjectTypeDef> objects,     // RFC-0032：EntityDef → ObjectTypeDef
+        List<FunctionDef> functions,     // RFC-0032：新增函数定义
         List<ContextVar> context
 ) {
     /**
-     * 实体字段定义。
+     * 对象类型定义（对应 entity.ObjectType）。
      *
-     * <p>type 是 RFC-0031 的 5 个 Variant 之一（{@link Type}）：
-     * <ul>
-     *   <li>{@code PrimitiveType}：原子类型（string/number/boolean/date）</li>
-     *   <li>{@code EnumType}：内联枚举（含 values 列表）</li>
-     *   <li>{@code ObjectType}：对象引用（指向同 DomainMeta 下的另一个 EntityDef）</li>
-     *   <li>{@code ListType}：列表（elementType 嵌套任意 Type）</li>
-     *   <li>{@code MapType}：字典（keyType / valueType 嵌套）</li>
-     * </ul>
+     * <p>RFC-0032 修订：直接使用 entity.ObjectType（含 kind + enumValues），
+     * 不再需要独立的 ObjectTypeDef 投影。
      */
-    public record EntityField(
+    public record ObjectTypeDef(
+            String programCode,           // 对应 ObjectType.programCode
+            ObjectType.Kind kind,         // CLASS | ENUM
+            List<EnumValue> enumValues,   // 仅 kind=ENUM 时使用
+            List<AttributeDef> attributes
+    ) {}
+
+    /**
+     * 属性定义（对应 entity.AttributeType）。
+     */
+    public record AttributeDef(
+            String programCode,
             String name,
-            Type type,
+            Type type,                   // 4 个 Variant
             boolean nullable,
             boolean writable
     ) {}
 
-    public record EntityDef(String id, List<EntityField> fields) {}
+    /**
+     * 枚举值（RFC-0032：内联在 ObjectTypeDef.enumValues 中）。
+     */
+    public record EnumValue(String code, String label, Integer sortOrder) {}
+
+    /**
+     * 函数定义（对应 entity.FunctionLib）。
+     */
+    public record FunctionDef(
+            String programCode,
+            String name,
+            FunctionSignature signature
+    ) {}
 
     /**
      * Context 入口变量。
      *
-     * <p>MVP 约束：type 必须是 {@link com.orule.common.model.type.ObjectType}，
+     * <p>MVP 约束：type 必须是 {@link ObjectRef}，
      * 不允许 primitive / enum / list / map 作为 context 入口（详见 SimpleTS.md §7）。
      */
     public record ContextVar(
             String name,
-            com.orule.common.model.type.ObjectType type,
+            String objectTypeCode,        // 引用 ObjectTypeDef.programCode
             boolean nullable
     ) {}
 }
+```
+
+> **RFC-0032 命名对照**：EntityDef → ObjectTypeDef；EntityField → AttributeDef；ObjectType → ObjectRef
 ```
 
 ### 3.4 AST 节点（核心样例）
@@ -1055,8 +1078,8 @@ void undeclaredIdentifier_shouldFail() {
 
 ## 8. 关联
 
-- 上游：RFC-0015（元数据 API，提供 DomainMeta 拼装数据源）、**RFC-0031（Type 系统 5 Variant + enum 内联）**
+- 上游：RFC-0015（元数据 API，提供 DomainMeta 拼装数据源）、**RFC-0031（Type 系统重构）**、**RFC-0032（ObjectType 枚举化 + Type 系统 4 Variant）**
 - 下游：RFC-0019（SimpleTS→Groovy 代码生成器）、RFC-0023（NL→SimpleTS）
 - 平级：RFC-0020（Groovy 沙箱）— **共用 §3.10 SimpleTSWhitelist 白名单单一来源**
-- ADR：**ADR-003 中间态 DSL 采用 SimpleTS**、**ADR-006 规则源语言采用 SimpleTS**、**ADR-009 SimpleTS 为中心的星型转换架构**
+- ADR：**ADR-003 中间态 DSL 采用 SimpleTS**、**ADR-006 规则源语言采用 SimpleTS**、**ADR-009 SimpleTS 为中心的星型转换架构**、**ADR-012 enum 视为 ObjectType 特殊形态**
 - 规范：[docs/dsl/SimpleTS.md](../../dsl/SimpleTS.md)

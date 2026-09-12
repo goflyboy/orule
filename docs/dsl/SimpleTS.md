@@ -1,8 +1,9 @@
 # SimpleTS：面向 orule 的 TS 面向对象定制子集
 
-> **文档版本**：v0.1 · 2026-09-10
+> **文档版本**：v0.2 · 2026-09-12
 > **状态**：草案 · 与 ADR-003 / ADR-002 配合阅读
 > **适用读者**：架构师、规则引擎开发者、规则编写者（业务 + 工程师）
+> **RFC-0032 同步**：§7 新增 ObjectInst（运行时实例）定义
 
 ---
 
@@ -355,9 +356,66 @@ export interface DomainMeta {
 > 即不允许 `customer.address.city`（address 是 object 字段）。`list` / `map` 类型字段也不允许访问内部元素。
 > 复杂场景通过 FunctionLib（其签名采用相同 Type 树）+ 字段拍平实现。
 
+### 7.2 ObjectInst（运行时实例）
 
+**ObjectInst** 是 ObjectType 的运行时实例，承载规则执行时的具体业务数据。
 
-### 7.1 校验项
+```ts
+/**
+ * 运行时对象实例。
+ * 对应元数据层的 ObjectType，是规则执行时的输入/输出数据载体。
+ */
+export interface ObjectInst {
+  /** 实例 ID（UUID），用于追踪和调试 */
+  _id: string;
+  /** 引用的 ObjectType.programCode，如 "Customer"、"Order" */
+  _type: string;
+  /** 属性值：fieldName → value */
+  [fieldName: string]: any;
+}
+```
+
+**ObjectInst 与 ObjectType 的对应关系**：
+
+| 元数据层（ObjectType） | 运行时实例层（ObjectInst） |
+|---------------------|--------------------------|
+| `ObjectType.programCode` | `ObjectInst._type` |
+| `AttributeType.name` | `ObjectInst[fieldName]` |
+
+**示例**：
+
+```ts
+// ObjectType 定义
+const customerType = {
+  id: 'Customer',
+  fields: [
+    { name: 'id',   type: { kind: 'primitive', name: 'string' } },
+    { name: 'tier', type: { kind: 'enum', enumCode: 'CustomerTier', values: [...] } }
+  ]
+};
+
+// ObjectInst 实例
+const customer = {
+  _id: 'C001',
+  _type: 'Customer',
+  id: 'C001',
+  tier: 'VIP'
+};
+```
+
+### 7.3 规则执行上下文（Context）
+
+规则执行时，Context 是一个 Map，key 是变量名（如 `customer`、`order`），value 是 ObjectInst：
+
+```ts
+// 规则执行上下文示例
+const inputContext = {
+  customer: { _id: 'C001', _type: 'Customer', id: 'C001', tier: 'VIP', name: '张三' },
+  order:    { _id: 'O001', _type: 'Order',    id: 'O001', totalAmount: 250, discount: 0 }
+};
+```
+
+### 7.4 校验项
 
 
 | 校验           | 来源                          | 失败示例                          |

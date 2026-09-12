@@ -816,8 +816,8 @@ INSERT INTO function_lib (id, program_code, name, signature, description, catego
 
 ### 7.3 同步更新
 
-- `docs/04-数据模型.md` §4.2 attribute_type 表说明 + §4.3 object_type 表说明
-- `docs/dsl/SimpleTS.md` §7 DomainMeta 形态（EntityDef → ObjectTypeDef；EntityField → AttributeDef）
+- ✅ `docs/04-数据模型.md` §4.4 **新增运行时实例域**：ObjectInst / RuleExecutor / ExecutionResult（2026-09-12）
+- ✅ `docs/dsl/SimpleTS.md` §7.2-§7.3 **新增 ObjectInst 定义**：运行时实例 + 规则执行上下文（2026-09-12）
 - `docs/rfcs/README.md` 索引新增 RFC-0032；TODO 列表移除 RFC-0033（enum 全局唯一字典）—— 本 RFC 通过 ObjectType(kind=ENUM) 已实现 enum 复用
 
 ---

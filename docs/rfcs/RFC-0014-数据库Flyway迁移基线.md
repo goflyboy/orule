@@ -4,6 +4,9 @@
 > **RFC-0031 修订**：本 RFC 已被 [RFC-0031-Type系统重构.md](RFC-0031-Type系统重构.md) 部分覆盖；
 > 具体差异：`attribute_type` 表增加 `type_json` 列、`enum_type` / `enum_value` 表删除、
 > `function_lib.signature` 改为 JSON。详见 RFC-0031 §3.2。
+> **RFC-0032 修订**：本 RFC 已被 RFC-0032 进一步覆盖；具体差异：
+> `attribute_type` 拆为 3 列（data_type + sub_data_type_program_code + sub_data_type_program_code_2）；
+> `object_type` 增加 kind（CLASS/ENUM）+ enum_values；code → program_code。
 
 ---
 

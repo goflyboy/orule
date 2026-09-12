@@ -538,7 +538,7 @@ void stringLiteral_escape() {
 
 ## 8. 关联
 
-- 上游：RFC-0018（SimpleTS 解析器）、RFC-0017（ArtifactStorage）、**RFC-0031（Type 系统，5 Variant）**
+- 上游：RFC-0018（SimpleTS 解析器）、RFC-0017（ArtifactStorage）、**RFC-0031（Type 系统重构）**、**RFC-0032（ObjectType 枚举化 + Type 系统 4 Variant）**
 - 下游：RFC-0020（Groovy 沙箱执行）、RFC-0022（测试用例）、RFC-0023（NL→SimpleTS）
-- ADR：**ADR-009 SimpleTS 为中心的星型转换架构**
+- ADR：**ADR-009 SimpleTS 为中心的星型转换架构**、**ADR-012 enum 视为 ObjectType 特殊形态**
 - 规范：[docs/dsl/SimpleTS.md §10.2](../../dsl/SimpleTS.md)
