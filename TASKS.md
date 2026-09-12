@@ -11,29 +11,39 @@
 ## 任务清单
 
 ```
-[ ] 1. 新增 DTO: GroovySourceIntakeRequest（record，含 jakarta.validation）
-[ ] 2. 新增 DTO: GroovySourceIntakeResponse（record）
-[ ] 3. 新增 Service: GroovySourceIntakeService
+[✅] 1. 新增枚举: com.orule.common.entity.CompileStatus (SUCCESS/FAILED/PENDING)
+[✅] 2. 新增 DTO: GroovySourceIntakeRequest (record, @Size/@Min)
+[✅] 3. 新增 DTO: GroovySourceIntakeResponse (record)
+[✅] 4. 新增 Service: GroovySourceIntakeService
        - intake(ruleVersionId, request) 入口
        - SHA256 一致性校验
-       - 成功 / 失败分支（成功：落 RuleVersion.groovy_source + 上传 Artifact + 落 RuleArtifact.SUCCESS）
+       - 成功 / 失败分支（成功：落 RuleVersion.groovy_source + 上传 Artifact + 落 RuleArtifact）
        - 失败：保留旧值 + 落 RuleArtifact.FAILED（不传 ArtifactStorage）
-[ ] 4. 新增 Controller: GroovySourceIntakeController
-       - POST /mcp/tools/orule.rule.publishCompiledGroovy
-       - 复用 RFC-0018 §3.6 ExecutionResponse 出参约定
-[ ] 5. 自定义异常：RuleVersionNotFoundException（如有 NotFoundException 可复用）
-[ ] 6. 单测（WebMvcTest + Mockito）：
+[✅] 5. 新增 Controller: GroovySourceIntakeController
+       - POST /mcp/tools/orule.rule.publishCompiledGroovy?ruleVersionId=xxx
+       - 返回 Result<GroovySourceIntakeResponse>
+[✅] 6. 扩展 GlobalExceptionHandler：MissingServletRequestParameterException → 400
+[✅] 7. 修复 ObjectType.Kind 枚举期望（pre-existing bug，2 → 3，含 VOID）
+[✅] 8. 单测（Mockito）：
        - 成功用例：完整落库 + Artifact 上传
        - 失败用例：compileLog 非空 → FAILED，不上传
-       - SHA256 mismatch → 422 Unprocessable Entity
-       - groovySource 长度上限 → 400
-       - sha256 缺失 → 400
+       - compileLog 全空白 → 视为成功
+       - SHA256 mismatch → IllegalArgumentException
+       - 失败保留旧 groovy_source
+       - ruleVersionId 不存在 → NotFoundException
+       - ruleVersionId 缺失 / 空 → IllegalArgumentException
+       - sha256 缺失 / 空 → IllegalArgumentException
+       - upsert 语义：同一 RuleVersion 多次 intake 生成不同 artifactId
+[✅] 9. 集成测试（@SpringBootTest + MockMvc + H2 + LocalStorage）：
+       - 成功：端到端 200 + Result + compileStatus=SUCCESS + 落 artifact
+       - 失败（compileLog 非空）：200 + compileStatus=FAILED
+       - SHA256 mismatch → 400
        - ruleVersionId 不存在 → 404
-[ ] 7. 集成测试（Testcontainers MySQL + LocalStorage）：
-       - 端到端落库后查 RuleArtifact.compileStatus = SUCCESS
-       - 失败用例：RuleArtifact.compileStatus = FAILED + compileLog 非空
-[ ] 8. 更新 docs/04-数据模型.md（如有新增列）
-[ ] 9. 自检：mvn -pl packages/orule-server -am clean test
+       - groovySource 空 + compileLog 空 → 400（service 业务校验）
+       - sha256 空 → 400
+       - ruleVersionId 缺失 → 400（MissingServletRequestParameterException）
+       - groovySource 超 100KB → 400（@Size 触发）
+[✅] 10. 自检：mvn -pl packages/orule-server -am test → 全部 PASS（68/68）
 ```
 
 ---
@@ -62,20 +72,22 @@
 ## 落点文件清单
 
 ```
+packages/orule-common/src/main/java/com/orule/common/
+├── entity/CompileStatus.java                     ★ 新增
+└── dto/GroovySourceIntakeRequest.java            ★ 新增
+└── dto/GroovySourceIntakeResponse.java           ★ 新增
+
 packages/orule-server/src/main/java/com/orule/server/
-├── controller/
-│   └── GroovySourceIntakeController.java     ★ 新增
-├── service/
-│   └── GroovySourceIntakeService.java        ★ 新增
-└── dto/
-    ├── GroovySourceIntakeRequest.java        ★ 新增
-    └── GroovySourceIntakeResponse.java       ★ 新增
+├── controller/GroovySourceIntakeController.java ★ 新增
+├── service/GroovySourceIntakeService.java        ★ 新增
+└── exception/GlobalExceptionHandler.java         ← 扩展（MissingServletRequestParameterException / MethodArgumentTypeMismatchException → 400）
 
 packages/orule-server/src/test/java/com/orule/server/
-├── controller/
-│   └── GroovySourceIntakeControllerTest.java ★ 新增（WebMvcTest）
-└── service/
-    └── GroovySourceIntakeServiceTest.java    ★ 新增（Mockito）
+├── controller/GroovySourceIntakeControllerTest.java ★ 新增（@SpringBootTest + MockMvc + H2 + LocalStorage）
+└── service/GroovySourceIntakeServiceTest.java    ★ 新增（Mockito）
+
+packages/orule-common/src/test/java/com/orule/common/entity/
+└── ObjectTypeEntityTest.java                     ← 修复（pre-existing：枚举期望从 2 改为 3，加 VOID）
 ```
 
 ---
