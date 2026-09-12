@@ -75,6 +75,7 @@
 
 - [RFC-0031 Type 系统重构 — JSON 树扁平化 + 5 个 Variant](RFC-0031-Type系统重构.md) — DRAFT
 - [RFC-0032 ObjectType 枚举化 + Type 系统简化（5 Variant → 4 Variant）](RFC-0032-ObjectType枚举化与Type系统简化.md) — IMPLEMENTING
+- [RFC-0033 元数据管理（2）— RuleSetType 与 RuleType（JSON 拍平）](RFC-0033-元数据管理2-RuleSetType与RuleType.md) — DRAFT
 
 ## 状态说明
 

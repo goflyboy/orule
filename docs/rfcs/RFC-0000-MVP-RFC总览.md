@@ -57,6 +57,9 @@
 | **RFC-0028** | 端到端集成测试（MVP 验收用例） | 测试 | S8 | RFC-0024~0026 | 3d | P0 |
 | **RFC-0029** | Docker Compose MVP 部署 | 顶层 | S8 | RFC-0013 | 2d | P1 |
 | **RFC-0030** | MVP 验收 + 演示 Demo | 顶层 | S9 | 全部 | 2d | P0 |
+| **RFC-0031** | Type 系统重构（5 Variant） | common | S1 增强 | RFC-0014 | 2d | P0 |
+| **RFC-0032** | ObjectType 枚举化 + Type 系统简化（4 Variant）| common | S1 增强 | RFC-0031 | 2d | P0 |
+| **RFC-0033** | 元数据管理（2）— RuleSetType 与 RuleType（JSON 拍平）| common+server | S1/S2 增强 | RFC-0032 | 4d | P0 |
 
 **总计**：~59 人天（含缓冲后 ~80 人天，约 3 个月 / 5 人团队）
 
