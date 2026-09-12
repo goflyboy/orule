@@ -1,7 +1,8 @@
 # ADR-012：GraalJS Polyglot 替代方案选型（用于 RFC-0018 SimpleTS 解析器）
 
-> 状态：DRAFT（待评审）
-> 日期：2026-09-12（v2 修订）
+> **状态**：**SUPERSEDED** —— 本 ADR 记录的方案 A/B/C 已被 [ADR-012-Aprime-本地Skill编译与MCPLangLib库.md](ADR-012-Aprime-本地Skill编译与MCPLangLib库.md) 取代
+> **最终采纳**：**A'** —— 本地 LLM-Studio Skill（Node.js 版）+ MCP 落库
+> 日期：2026-09-12（v1） / 2026-09-12 v2 修订为 A'
 > 决策者：架构组
 > 相关：RFC-0018 §3.9、RFC-0019、RFC-0020、ADR-003、ADR-006、ADR-009、`tmpdocs/TDD推进RFC0018-20-待确认问题.md`
 
