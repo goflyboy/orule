@@ -26,32 +26,19 @@
 
 ```
 packages/orule-common/src/main/java/com/orule/dsl/
-├── SimpleTSParser.java        # 入口
-├── DomainMeta.java            # 元数据 DTO
-├── ast/                       # SimpleTS-AST 节点（与 docs/dsl/SimpleTS.md §6 对应）
-│   ├── Node.java              # 公共接口
-│   ├── Program.java
-│   ├── Block.java
-│   ├── IfStmt.java
-│   ├── ForStmt.java
-│   ├── DeclareStmt.java
-│   ├── AssignStmt.java
-│   ├── ExprStmt.java
-│   ├── BinaryExpr.java
-│   ├── UnaryExpr.java
-│   ├── Literal.java
-│   ├── MemberAccess.java
-│   ├── CallExpr.java
-│   └── EnumRef.java
-├── error/
-│   ├── TssCompileError.java
-│   └── CompileError.java
-└── validate/
-    ├── WhitelistPruner.java    # §9.1 白名单剪枝
-    ├── IdentifierResolver.java # §7.1 标识符作用域
-    ├── FieldValidator.java     # 字段存在性 + 枚举值
-    ├── TypeChecker.java        # 类型对齐
-    └── LValueChecker.java      # 左值合法性
+├── SimpleTSParser.java        # 入口（RFC-0018-bis：parse(source, RuleType)）
+├── SimpleTSWhitelist.java     # 白名单单一来源（与 RFC-0020 共用）
+
+packages/orule-common/src/main/java/com/orule/common/entity/
+├── RuleType.java              # 规则类型（RFC-0018-bis 新增）
+├── ArgumentType.java          # 入参定义（RFC-0018-bis 新增）
+├── ReturnType.java           # 出参定义（RFC-0018-bis 新增）
+├── RuleTypeFuntion.java      # 规则函数白名单（RFC-0018-bis 新增）
+└── RuleTypeExcludeFuntion.java  # 排除函数（审计注释，RFC-0018-bis 新增）
+
+packages/orule-common/src/main/java/com/orule/dsl/ast/  # SimpleTS-AST 节点
+packages/orule-common/src/main/java/com/orule/dsl/error/  # 错误模板
+packages/orule-common/src/main/java/com/orule/dsl/validate/  # 校验器
 ```
 
 ### 3.2 入口 SimpleTSParser
@@ -80,135 +67,357 @@ public class SimpleTSParser {
 
     /**
      * 编译入口。
-     * @param source SimpleTS 源码
-     * @param meta   领域元数据
-     * @return  SimpleTS-AST
+     *
+     * <p><b>RFC-0018-bis 修订</b>：入口从 {@code parse(source, DomainMeta)} 收窄为
+     * {@code parse(source, RuleType)}。RuleType 持有 arguments / returnType / functionTypes，
+     * DomainMeta 概念已废弃。
+     *
+     * @param source   SimpleTS 源码
+     * @param ruleType 该条规则所属的 RuleType（含 arguments / returnType / functionTypes）
+     * @return         SimpleTS-AST
      * @throws TssCompileError 编译失败（含完整错误列表）
      */
-    public Program parse(String source, DomainMeta meta) {
+    public Program parse(String source, RuleType ruleType) {
         // 1. 词法 / 语法（基于 TypeScript Compiler API 通过 GraalJS 调用）
         TsSourceFile tsAst = parseToTsAst(source);
-        
-        // 2. 白名单剪枝
-        Program program = pruner.convert(tsAst, meta);
+
+        // 2. 白名单剪枝（白名单取自 ruleType.functionTypes ∪ SimpleTSWhitelist 内置方法）
+        Program program = pruner.convert(tsAst, ruleType);
         if (pruner.hasErrors()) {
             throw new TssCompileError(pruner.getErrors());
         }
-        
-        // 3. 标识符作用域解析
-        resolver.resolve(program, meta);
+
+        // 3. 标识符作用域解析（从 ruleType.arguments 起算）
+        resolver.resolve(program, ruleType);
         if (resolver.hasErrors()) {
             throw new TssCompileError(resolver.getErrors());
         }
-        
+
         // 4. 字段存在性 + 枚举值校验
-        fieldValidator.validate(program, meta);
-        if (fieldValidator.hasErrors()) {
-            throw new TssCompileError(fieldValidator.getErrors());
+        if (ruleType.getValidatable()) {
+            fieldValidator.validate(program, ruleType);
+            if (fieldValidator.hasErrors()) {
+                throw new TssCompileError(fieldValidator.getErrors());
+            }
+
+            // 5. 类型对齐
+            typeChecker.check(program, ruleType);
+            if (typeChecker.hasErrors()) {
+                throw new TssCompileError(typeChecker.getErrors());
+            }
         }
-        
-        // 5. 类型对齐
-        typeChecker.check(program, meta);
-        if (typeChecker.hasErrors()) {
-            throw new TssCompileError(typeChecker.getErrors());
-        }
-        
-        // 6. 左值合法性
+
+        // 6. 左值合法性（与 meta 解耦，签名不含 ruleType）
         lvalueChecker.check(program);
         if (lvalueChecker.hasErrors()) {
             throw new TssCompileError(lvalueChecker.getErrors());
         }
-        
+
         return program;
     }
 }
 ```
 
-### 3.3 DomainMeta（Java 版 — RFC-0031/RFC-0032 同步）
+### 3.3 删除
+
+> **RFC-0018-bis 修订**：旧的 `DomainMeta` 模型已废弃。RuleSet 本身就代表一个领域
+>（"领域下高内聚的规则集合"），DSL 编译入口收窄为 `parse(source, RuleType)`。
+>
+> 详细定义见 §3.11。
+>
+> 删除内容：
+> - `DomainMeta` record（含 `objects / functions / context` 字段）
+> - `DomainMeta.ObjectTypeDef` / `AttributeDef` / `EnumValue` / `FunctionDef` / `ContextVar`
+> - `MemberAccess.root` 注释中的 "DomainMeta.context" 引用
+> - `WhitelistPruner.convert(tsAst, DomainMeta)` 方法签名
+> - `FieldValidator.validateWritable` / `validateEnumRef` 中对 `DomainMeta.entities()` 的调用
+
+### 3.3.1 RuleSet（元数据实体 — 复用现有 entity.RuleSet）
+
+> **复用说明**：仓库已有 `entity.RuleSet`（`rule_set` 表），对应 RuleSetType 概念。
+> RuleSet 持有 `domain`（ManyToOne → `DomainType`）和 `rules`（OneToMany → `Rule`），
+> 通过新增的 `RuleType` 中间层建立规则类型元数据。
+
+### 3.3.2 RuleType（元数据实体 — 新增）
+
+> **RFC-0018-bis 新增**：规则类型。RuleType 本质上是一个空函数，
+> 业务人员填写的 SimpleTS 源码 = 函数体 = 规则。
 
 ```java
-package com.orule.dsl;
+package com.orule.common.entity;
 
-import com.orule.common.model.type.Type;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 领域元数据（与 docs/dsl/SimpleTS.md §7 DomainMeta 对应）。
+ * RuleType：规则类型（RFC-0018-bis §3.3.2）。
  *
- * <p><b>RFC-0031 + RFC-0032 修订</b>：
+ * <p>RuleType 本质上是一个空函数，业务人员填写的 SimpleTS 源码即函数体。
+ * 主要定义：
+ * <ol>
+ *   <li>函数的入参（arguments）和出参（returnType）；</li>
+ *   <li>函数体内可调用的 SDK 白名单（functionTypes，声明式）。</li>
+ * </ol>
+ *
+ * <p>不变式（由拼装层保证）：
  * <ul>
- *   <li>Type 系统为 4 个 Variant（RFC-0032）：PrimitiveType / ObjectRef / ListType / MapType。
- *       <b>EnumType 已删除</b>，enum 视为 ObjectType.kind=ENUM 的特殊形态。</li>
- *   <li>Field 的 type 改为 {@link Type}（4 个 Variant 之一），不再是 RFC-0031 之前的
- *       {@code sealed interface FieldType permits PrimitiveType, EntityRef, EnumRef}。</li>
- *   <li><b>删除顶层 {@code enums} 字段</b>：enum 定义在 ObjectType.kind=ENUM 的 enumValues 中，
- *       无需独立的 enum_value 表（详见 RFC-0032 §3.1）。</li>
- *   <li>{@link ContextVar} 的 type 固定为 {@link com.orule.common.model.type.ObjectRef}
- *       （context 入口必须是对象引用，不能是 primitive / enum / list / map）。</li>
+ *   <li>RuleType.arguments[*].objectType ∈ enclosing RuleSet.objectTypes</li>
+ *   <li>RuleType.returnType.objectType ∈ enclosing RuleSet.objectTypes ∪ {VOID}</li>
+ *   <li>RuleType.functionTypes ⊆ enclosing RuleSet.functionTypes</li>
  * </ul>
- *
- * <p>由 orule-server 在编译时根据 RFC-0015 的元数据 API 拼装。
  */
-public record DomainMeta(
-        String id,
-        List<ObjectTypeDef> objects,     // RFC-0032：EntityDef → ObjectTypeDef
-        List<FunctionDef> functions,     // RFC-0032：新增函数定义
-        List<ContextVar> context
-) {
-    /**
-     * 对象类型定义（对应 entity.ObjectType）。
-     *
-     * <p>RFC-0032 修订：直接使用 entity.ObjectType（含 kind + enumValues），
-     * 不再需要独立的 ObjectTypeDef 投影。
-     */
-    public record ObjectTypeDef(
-            String programCode,           // 对应 ObjectType.programCode
-            ObjectType.Kind kind,         // CLASS | ENUM
-            List<EnumValue> enumValues,   // 仅 kind=ENUM 时使用
-            List<AttributeDef> attributes
-    ) {}
+@Entity
+@Table(name = "rule_type")
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+public class RuleType {
+
+    @Id
+    private String id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rule_set_id", nullable = false)
+    private RuleSet ruleSet;
+
+    @Column(name = "code", nullable = false, unique = true, length = 64)
+    private String code;
+
+    @Column(nullable = false, length = 128)
+    private String name;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
 
     /**
-     * 属性定义（对应 entity.AttributeType）。
+     * validatable（默认 true）。
+     * 为 false 时跳过 RFC-0018 §3.6 字段校验（实验用临时豁免）。
      */
-    public record AttributeDef(
-            String programCode,
-            String name,
-            Type type,                   // 4 个 Variant
-            boolean nullable,
-            boolean writable
-    ) {}
+    @Column(name = "is_validatable", nullable = false)
+    @Builder.Default
+    private Boolean validatable = true;
 
     /**
-     * 枚举值（RFC-0032：内联在 ObjectTypeDef.enumValues 中）。
+     * 入参定义（ArgumentType）。
+     * 对应函数的入参列表。
      */
-    public record EnumValue(String code, String label, Integer sortOrder) {}
+    @OneToMany(mappedBy = "ruleType", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ArgumentType> arguments = new ArrayList<>();
 
     /**
-     * 函数定义（对应 entity.FunctionLib）。
+     * 出参定义（ReturnType）。
+     * MVP 一条 RuleType 仅一个 Return。
      */
-    public record FunctionDef(
-            String programCode,
-            String name,
-            FunctionSignature signature
-    ) {}
+    @OneToOne(mappedBy = "ruleType", cascade = CascadeType.ALL, orphanRemoval = true)
+    private ReturnType returnType;
 
     /**
-     * Context 入口变量。
-     *
-     * <p>MVP 约束：type 必须是 {@link ObjectRef}，
-     * 不允许 primitive / enum / list / map 作为 context 入口（详见 SimpleTS.md §7）。
+     * 允许调用的函数 SDK 白名单（声明式，不隐式继承）。
+     * 为空表示"无 SDK 可用"。
      */
-    public record ContextVar(
-            String name,
-            String objectTypeCode,        // 引用 ObjectTypeDef.programCode
-            boolean nullable
-    ) {}
+    @OneToMany(mappedBy = "ruleType", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<RuleTypeFuntion> functionTypes = new ArrayList<>();
+
+    /**
+     * 审计注释：应被排除但仍被允许的函数列表。
+     * 不变量：functionTypes ∩ excludeFunctionTypes = ∅
+     * DSL 编译期仅产生 warning，不报错。
+     */
+    @OneToMany(mappedBy = "ruleType", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<RuleTypeExcludeFuntion> excludeFunctionTypes = new ArrayList<>();
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
 }
 ```
 
-> **RFC-0032 命名对照**：EntityDef → ObjectTypeDef；EntityField → AttributeDef；ObjectType → ObjectRef
+### 3.3.3 ArgumentType（元数据实体 — 新增）
+
+> **RFC-0018-bis 新增**：入参定义（类比函数参数）。
+
+```java
+package com.orule.common.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+/**
+ * ArgumentType：规则类型的入参定义（RFC-0018-bis §3.3.3）。
+ *
+ * <p>对应函数的参数列表。每个 ArgumentType 描述一个入口变量的类型约束。
+ */
+@Entity
+@Table(name = "rule_argument")
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+public class ArgumentType {
+
+    @Id
+    private String id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rule_type_id", nullable = false)
+    private RuleType ruleType;
+
+    /**
+     * 参数名（业务语义），对应 SimpleTS 中的入口变量名。
+     * 例如："customer"、"order"。
+     */
+    @Column(name = "program_code", nullable = false, length = 64)
+    private String programCode;
+
+    /**
+     * 参数的领域对象类型。
+     * 必须是 enclosing RuleSet.objectTypes 中的元素。
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "object_type_id", nullable = false)
+    private ObjectType objectType;
+
+    /**
+     * null 是否合法。
+     * 为 true 时生成的 Groovy 代码需有非空判断。
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean nullable = false;
+
+    /**
+     * 是否可被 SimpleTS 赋值。
+     * 为 true 时该参数可以作为 AssignStmt.target。
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean writable = false;
+
+    /** 排序序号（决定参数顺序） */
+    @Column(name = "sort_order", nullable = false)
+    @Builder.Default
+    private Integer sortOrder = 0;
+}
+```
+
+### 3.3.4 ReturnType（元数据实体 — 新增）
+
+> **RFC-0018-bis 新增**：出参定义（类比函数返回）。
+>
+> `objectType = null` 表示 VOID（`ObjectType.Kind.VOID`，内置，不入库）。
+
+```java
+package com.orule.common.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+/**
+ * ReturnType：规则类型的出参定义（RFC-0018-bis §3.3.4）。
+ *
+ * <p>对应函数的返回值。
+ * <ul>
+ *   <li>objectType = null → VOID（ObjectType.Kind.VOID，内置）</li>
+ *   <li>objectType ≠ null 且 nullable = false → 返回 null 视为校验失败</li>
+ *   <li>objectType ≠ null 且 nullable = true → 返回 null 合法</li>
+ * </ul>
+ */
+@Entity
+@Table(name = "rule_return")
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+public class ReturnType {
+
+    @Id
+    private String id;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rule_type_id", nullable = false, unique = true)
+    private RuleType ruleType;
+
+    /**
+     * 返回值类型。
+     * null 表示 VOID（无返回值）。
+     * 必须是 enclosing RuleSet.objectTypes 中的元素，或 VOID。
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "object_type_id", nullable = true)
+    private ObjectType objectType;
+
+    /** nullable = false 时返回 null 视为校验失败 */
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean nullable = false;
+
+    /** 排序序号（MVP 一条 RuleType 仅一个 Return，始终为 0） */
+    @Column(name = "sort_order", nullable = false)
+    @Builder.Default
+    private Integer sortOrder = 0;
+}
+```
+
+### 3.3.5 RuleTypeFuntion / RuleTypeExcludeFuntion（元数据实体 — 新增）
+
+> **RFC-0018-bis 新增**：规则类型的函数白名单关联表。
+
+```java
+package com.orule.common.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+/**
+ * RuleTypeFuntion：规则类型允许调用的函数 SDK（RFC-0018-bis §3.3.5）。
+ *
+ * <p>声明式白名单。functionTypes 为空表示"无 SDK 可用"。
+ * 不隐式继承 RuleSet.functionTypes。
+ */
+@Entity
+@Table(name = "rule_type_funtion")
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+public class RuleTypeFuntion {
+
+    @Id
+    private String id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rule_type_id", nullable = false)
+    private RuleType ruleType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "funtion_type_id", nullable = false)
+    private FuntionType funtionType;      // 重命名自 FunctionLib
+}
+
+/**
+ * RuleTypeExcludeFuntion：规则类型的排除函数 SDK（RFC-0018-bis §3.3.5）。
+ *
+ * <p>审计注释字段。DSL 编译期仅产生 warning。
+ * 不变量：RuleType.functionTypes ∩ RuleType.excludeFunctionTypes = ∅
+ */
+@Entity
+@Table(name = "rule_type_exclude_funtion")
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+public class RuleTypeExcludeFuntion {
+
+    @Id
+    private String id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rule_type_id", nullable = false)
+    private RuleType ruleType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "funtion_type_id", nullable = false)
+    private FuntionType funtionType;
+}
 ```
 
 ### 3.4 AST 节点（核心样例）
@@ -250,7 +459,7 @@ public record BinaryExpr(
 ) implements Expr {}
 
 public record MemberAccess(
-    String root,           // 必须是 DomainMeta.context 中的入口变量
+    String root,           // 必须是 RuleType.arguments 中的入口变量
     List<String> path,     // 后续属性链
     int line, int column
 ) implements Expr, com.orule.dsl.ast.LValue {}  // 既是 Expr 又是合法左值
@@ -270,8 +479,8 @@ public record CallExpr(
 package com.orule.dsl.validate;
 
 import com.orule.common.model.type.Type;
+import com.orule.common.entity.RuleType;
 import com.orule.dsl.ast.*;
-import com.orule.dsl.DomainMeta;
 import com.orule.dsl.error.CompileError;
 
 import java.util.ArrayList;
@@ -283,6 +492,9 @@ import ts.Node;
 
 /**
  * 白名单剪枝：把 TS AST 转换为 SimpleTS-AST。
+ *
+ * <p><b>RFC-0018-bis 修订</b>：参数从 DomainMeta 改为 RuleType。
+ * 白名单来源 = RuleType.functionTypes ∪ SimpleTSWhitelist 内置方法。
  *
  * <p>依据 docs/dsl/SimpleTS.md §9.1。
  *
@@ -319,9 +531,6 @@ public class WhitelistPruner {
 
     /**
      * statement 总数上限（与 SimpleTS.md §7.1 "statement 总数" 校验项一致）。
-     *
-     * <p>注意：仅统计 <b>成功转换</b> 的语句，被拒绝的非法语句不计入，
-     * 避免错误信息虚高导致正常规则被拒。
      */
     private static final int MAX_STATEMENT_COUNT = 200;
 
@@ -331,10 +540,10 @@ public class WhitelistPruner {
     public boolean hasErrors() { return !errors.isEmpty(); }
     public List<CompileError> getErrors() { return List.copyOf(errors); }
 
-    public Program convert(Node tsAst, DomainMeta meta) {
+    public Program convert(Node tsAst, RuleType ruleType) {
         List<Node> body = new ArrayList<>();
         for (Node stmt : tsAst.statements) {
-            Node converted = convertStatement(stmt, meta);
+            Node converted = convertStatement(stmt, ruleType);
             if (converted != null) {
                 body.add(converted);
                 statementCount++;
@@ -350,20 +559,19 @@ public class WhitelistPruner {
         return new Program(body, 1, 1);
     }
 
-    private Node convertStatement(Node ts, DomainMeta meta) {
-        // 不在 switch 顶部 ++，因为被 default 拒绝时不应计入 statement 数
+    private Node convertStatement(Node ts, RuleType ruleType) {
         return switch (ts.kind) {
-            case "IfStatement" -> convertIf(ts, meta);
-            case "ForStatement" -> convertFor(ts, meta);
-            case "VariableStatement" -> convertDeclare(ts, meta);
+            case "IfStatement" -> convertIf(ts, ruleType);
+            case "ForStatement" -> convertFor(ts, ruleType);
+            case "VariableStatement" -> convertDeclare(ts, ruleType);
             case "ExpressionStatement" -> {
-                Node expr = convertExpr(ts.expression, meta);
+                Node expr = convertExpr(ts.expression, ruleType);
                 if (expr instanceof Expr e) {
                     yield new ExprStmt(e, ts.line, ts.column);
                 }
                 yield null;
             }
-            case "Block" -> convertBlock(ts, meta);
+            case "Block" -> convertBlock(ts, ruleType);
             default -> {
                 errors.add(new CompileError(ts.line, ts.column,
                     "不允许的语句类型: " + ts.kind
@@ -372,31 +580,28 @@ public class WhitelistPruner {
             }
         };
     }
-    
-    private Node convertIf(Node ts, DomainMeta meta) {
-        // 处理 if / else if / else 链
+
+    private Node convertIf(Node ts, RuleType ruleType) {
         List<IfStmt.Branch> branches = new ArrayList<>();
         Node current = ts;
-        
+
         while (current.kind.equals("IfStatement")) {
-            Expr test = (Expr) convertExpr(current.expression, meta);
-            Block body = (Block) convertStatement(current.thenStatement, meta);
+            Expr test = (Expr) convertExpr(current.expression, ruleType);
+            Block body = (Block) convertStatement(current.thenStatement, ruleType);
             branches.add(new IfStmt.Branch(asBinary(test), body));
             current = current.elseStatement;
             if (current == null) break;
         }
-        
-        // else 块
+
         Block elseBody = null;
         if (current != null && current.kind.equals("Block")) {
-            elseBody = (Block) convertStatement(current, meta);
+            elseBody = (Block) convertStatement(current, ruleType);
         }
-        
-        // IfStmt 用 branches + elseBody 表示
+
         return new IfStmt(branches, elseBody, ts.line, ts.column);
     }
-    
-    private Node convertExpr(Node ts, DomainMeta meta) {
+
+    private Node convertExpr(Node ts, RuleType ruleType) {
         return switch (ts.kind) {
             case "BinaryExpression" -> {
                 if (!ALLOWED_BINARY_OPS.contains(ts.operatorToken)) {
@@ -405,8 +610,8 @@ public class WhitelistPruner {
                             + "（参见 SimpleTS.md §5 砍掉的语法）"));
                     yield null;
                 }
-                Expr left = (Expr) convertExpr(ts.left, meta);
-                Expr right = (Expr) convertExpr(ts.right, meta);
+                Expr left = (Expr) convertExpr(ts.left, ruleType);
+                Expr right = (Expr) convertExpr(ts.right, ruleType);
                 yield new BinaryExpr(ts.operatorToken, left, right, ts.line, ts.column);
             }
             case "PrefixUnaryExpression" -> {
@@ -415,23 +620,22 @@ public class WhitelistPruner {
                         "不允许的一元运算符: " + ts.operator));
                     yield null;
                 }
-                Expr arg = (Expr) convertExpr(ts.operand, meta);
+                Expr arg = (Expr) convertExpr(ts.operand, ruleType);
                 yield new UnaryExpr(ts.operator, arg, ts.line, ts.column);
             }
-            case "PropertyAccessExpression" -> convertMemberAccess(ts, meta);
-            case "CallExpression" -> convertCall(ts, meta);
+            case "PropertyAccessExpression" -> convertMemberAccess(ts, ruleType);
+            case "CallExpression" -> convertCall(ts, ruleType);
             case "NumericLiteral", "StringLiteral", "NoSubstitutionTemplateLiteral" ->
                 new Literal(parseLiteral(ts), ts.line, ts.column);
             case "TrueKeyword" -> new Literal(true, ts.line, ts.column);
             case "FalseKeyword" -> new Literal(false, ts.line, ts.column);
             case "NullKeyword" -> new Literal(null, ts.line, ts.column);
             case "ThisKeyword", "SuperKeyword" -> {
-                // RFC-0018 §3.5: 显式拒绝 this / super
                 errors.add(new CompileError(ts.line, ts.column,
                     "不允许的访问: '" + ts.kind + "'（SimpleTS 不支持 this/super）"));
                 yield null;
             }
-            case "ParenthesizedExpression" -> convertExpr(ts.expression, meta);
+            case "ParenthesizedExpression" -> convertExpr(ts.expression, ruleType);
             default -> {
                 errors.add(new CompileError(ts.line, ts.column,
                     "不允许的表达式类型: " + ts.kind
@@ -441,18 +645,14 @@ public class WhitelistPruner {
         };
     }
 
-    private MemberAccess convertMemberAccess(Node ts, DomainMeta meta) {
+    private MemberAccess convertMemberAccess(Node ts, RuleType ruleType) {
         List<String> path = new ArrayList<>();
         Node current = ts;
-        // 解析 customer.tier.length → root="customer", path=["tier", "length"]
-        // 注意：底层的 identifier（最左侧）一定不是 PropertyAccessExpression，
-        // 由 TS 编译器保证。
         while (current.kind.equals("PropertyAccessExpression")) {
             path.add(0, current.name.text);
             current = current.expression;
         }
 
-        // 拒绝 this.xxx / super.xxx
         if ("ThisKeyword".equals(current.kind) || "SuperKeyword".equals(current.kind)) {
             errors.add(new CompileError(ts.line, ts.column,
                 "不允许的访问: '" + current.kind + "'（SimpleTS 不支持 this/super）"));
@@ -463,11 +663,10 @@ public class WhitelistPruner {
         return new MemberAccess(root, path, ts.line, ts.column);
     }
 
-    private CallExpr convertCall(Node ts, DomainMeta meta) {
-        MemberAccess callee = convertMemberAccess(ts.expression, meta);
+    private CallExpr convertCall(Node ts, RuleType ruleType) {
+        MemberAccess callee = convertMemberAccess(ts.expression, ruleType);
         if (callee == null) return null;
 
-        // 白名单方法检查：取 path 末位
         if (!callee.path().isEmpty()) {
             String method = callee.path().get(callee.path().size() - 1);
             if (!ALLOWED_CALL_METHODS.contains(method)) {
@@ -479,31 +678,31 @@ public class WhitelistPruner {
 
         List<Expr> args = new ArrayList<>();
         for (Node arg : ts.arguments) {
-            args.add((Expr) convertExpr(arg, meta));
+            args.add((Expr) convertExpr(arg, ruleType));
         }
         return new CallExpr(callee, args, ts.line, ts.column);
     }
-    
+
     // ... 其他转换方法
 }
 ```
-
 ### 3.6 字段校验器
 
-依据 `docs/dsl/SimpleTS.md §7.1`。**RFC-0031 同步**：字段 type 是 5 个 Variant 之一，
-需新增"object/list/map 字段不可继续访问内部属性"校验（RFC-0031 §3.5.2 MVP 约束）。
+依据 `docs/dsl/SimpleTS.md §7.1`。**RFC-0018-bis 同步**：参数从 DomainMeta 改为 RuleType；
+字段校验锚点从"领域全局 context"下沉到"RuleType.arguments"；
+枚举值从 `RuleSet.objectTypes`（kind=ENUM）查找。
 
 ```java
 package com.orule.dsl.validate;
 
 import com.orule.common.model.type.Type;
 import com.orule.common.model.type.PrimitiveType;
-import com.orule.common.model.type.EnumType;
 import com.orule.common.model.type.ObjectType;
 import com.orule.common.model.type.ListType;
 import com.orule.common.model.type.MapType;
+import com.orule.common.entity.RuleType;
+import com.orule.common.entity.ArgumentType;
 import com.orule.dsl.ast.*;
-import com.orule.dsl.DomainMeta;
 import com.orule.dsl.error.CompileError;
 
 import java.util.ArrayList;
@@ -512,180 +711,149 @@ import java.util.Optional;
 
 public class FieldValidator {
 
-    /** 表达式嵌套深度上限（与 SimpleTS.md §7.1 "表达式嵌套过深" 一致） */
     private static final int MAX_EXPR_DEPTH = 32;
-
     private final List<CompileError> errors = new ArrayList<>();
 
     public boolean hasErrors() { return !errors.isEmpty(); }
     public List<CompileError> getErrors() { return List.copyOf(errors); }
 
-    public void validate(Program program, DomainMeta meta) {
+    public void validate(Program program, RuleType ruleType) {
         new NodeVisitor<Void>().visit(program, node -> {
             if (node instanceof MemberAccess ma) {
-                validateMemberAccess(ma, meta);
+                validateMemberAccess(ma, ruleType);
             } else if (node instanceof EnumRef er) {
-                validateEnumRef(er, meta);
+                validateEnumRef(er, ruleType);
             } else if (node instanceof AssignStmt assign) {
-                validateWritable(assign, meta);
+                validateWritable(assign, ruleType);
             }
             return null;
         });
     }
 
-    /**
-     * 校验 {@link MemberAccess} 链：
-     * <ol>
-     *   <li>root 必须在 {@link DomainMeta#context()} 中；</li>
-     *   <li>每跳字段必须存在于当前 entity；</li>
-     *   <li>中间跳的字段必须是 {@link ObjectType} 才能继续访问内部属性
-     *       （RFC-0031 §3.5.2 MVP 嵌套约束：list/map 也不能下钻）；</li>
-     *   <li>最后一跳的字段类型必须是 primitive / enum / object（与 SimpleTS §6
-     *       MemberAccess 语义一致，不能是 list/map 的元素访问）。</li>
-     * </ol>
-     */
-    private void validateMemberAccess(MemberAccess ma, DomainMeta meta) {
-        // 1. root 必须在 context 中
-        DomainMeta.ContextVar contextVar = meta.context().stream()
-                .filter(c -> c.name().equals(ma.root()))
+    private void validateMemberAccess(MemberAccess ma, RuleType ruleType) {
+        // 1. root 必须在 ruleType.arguments 中
+        ArgumentType arg = ruleType.getArguments().stream()
+                .filter(a -> a.getProgramCode().equals(ma.root()))
                 .findFirst()
                 .orElse(null);
 
-        if (contextVar == null) {
+        if (arg == null) {
             errors.add(new CompileError(ma.line(), ma.column(),
-                "未声明的标识符: '" + ma.root() + "'"
-                    + "（所有入口变量必须在 DomainMeta.context 中声明）"));
+                "未声明的标识符: '" + ma.root()
+                    + "'（所有入口变量必须在 RuleType.arguments 中声明）"));
             return;
         }
 
-        // 2. 从 context 的 objectType.objectCode 起步
-        DomainMeta.EntityDef entity = findEntity(meta, contextVar.type().objectCode());
-
+        ObjectType current = arg.getObjectType();
         for (int i = 0; i < ma.path().size(); i++) {
             String fieldName = ma.path().get(i);
-            DomainMeta.EntityField field = entity.fields().stream()
-                    .filter(f -> f.name().equals(fieldName))
+            var field = current.getAttributes().stream()
+                    .filter(f -> f.getProgramCode().equals(fieldName))
                     .findFirst()
                     .orElse(null);
 
             if (field == null) {
                 errors.add(new CompileError(ma.line(), ma.column(),
-                    "实体 " + entity.id() + " 上不存在字段 '" + fieldName + "'"));
+                    "对象 " + current.getProgramCode() + " 上不存在属性 '" + fieldName + "'"));
                 return;
             }
 
             boolean isLast = (i == ma.path().size() - 1);
+            Type t = field.getType();
 
-            // 3. 最后一跳：检查类型必须是可作"值"的类型（primitive/enum/object）
-            //    list/map 字段在 SimpleTS 表达式中不能直接访问元素（MVP 嵌套约束）。
             if (isLast) {
-                Type t = field.type();
                 if (t instanceof ListType || t instanceof MapType) {
                     errors.add(new CompileError(ma.line(), ma.column(),
-                        "字段 '" + fieldName + "' 是 " + kindName(t)
-                            + " 类型，SimpleTS 不支持直接访问内部元素"
-                            + "（参见 RFC-0031 §3.5.2 MVP 嵌套约束）"));
+                        "属性 '" + fieldName + "' 是 " + kindName(t)
+                            + " 类型，SimpleTS 不支持直接访问内部元素"));
                     return;
                 }
-                // primitive / enum / object 都允许作值
             } else {
-                // 4. 非最后一跳：必须是 object 才能继续
-                if (!(field.type() instanceof ObjectType ot)) {
+                if (!(t instanceof ObjectType ot)) {
                     errors.add(new CompileError(ma.line(), ma.column(),
-                        "字段 '" + fieldName + "' 是 " + kindName(field.type())
-                            + " 类型，不能继续访问内部属性"
-                            + "（参见 RFC-0031 §3.5.2 MVP 嵌套约束）"));
+                        "属性 '" + fieldName + "' 是 " + kindName(t)
+                            + " 类型，不能继续访问内部属性"));
                     return;
                 }
-                entity = findEntity(meta, ot.objectCode());
+                current = findObjectType(ruleType, ot);
             }
         }
     }
 
-    /**
-     * 校验 {@link AssignStmt} 左值的最后一个字段是否 writable（DomainMeta 控制）。
-     */
-    private void validateWritable(AssignStmt assign, DomainMeta meta) {
+    private void validateWritable(AssignStmt assign, RuleType ruleType) {
         MemberAccess target = assign.target();
-        DomainMeta.ContextVar contextVar = meta.context().stream()
-                .filter(c -> c.name().equals(target.root()))
+        ArgumentType arg = ruleType.getArguments().stream()
+                .filter(a -> a.getProgramCode().equals(target.root()))
                 .findFirst()
                 .orElse(null);
-        if (contextVar == null) return; // 已由 validateMemberAccess 报错
+        if (arg == null) return;
 
-        DomainMeta.EntityDef entity = findEntity(meta, contextVar.type().objectCode());
+        ObjectType current = arg.getObjectType();
         for (int i = 0; i < target.path().size(); i++) {
             String fieldName = target.path().get(i);
-            DomainMeta.EntityField field = entity.fields().stream()
-                    .filter(f -> f.name().equals(fieldName))
+            var field = current.getAttributes().stream()
+                    .filter(f -> f.getProgramCode().equals(fieldName))
                     .findFirst()
                     .orElse(null);
             if (field == null) return;
 
             boolean isLast = (i == target.path().size() - 1);
-            if (isLast && !field.writable()) {
+            if (isLast && !field.getWritable()) {
                 errors.add(new CompileError(target.line(), target.column(),
-                    "字段 '" + fieldName + "' 是只读字段，不可赋值"
-                        + "（参见 SimpleTS.md §7.1 "字段只读" 校验项）"));
+                    "属性 '" + fieldName + "' 是只读属性，不可赋值"));
                 return;
             }
-
-            if (!isLast && field.type() instanceof ObjectType ot) {
-                entity = findEntity(meta, ot.objectCode());
+            if (!isLast && field.getType() instanceof ObjectType ot) {
+                current = findObjectType(ruleType, ot);
             }
         }
     }
 
-    /**
-     * 校验 {@link EnumRef}：枚举类型必须存在，且取值在合法 values 中。
-     *
-     * <p>枚举定义已 RFC-0031 内联到字段的 {@code type.kind === 'enum'}：
-     * 需要遍历所有 entity 的所有 field，找到 enumCode 匹配的 EnumType.values。
-     */
-    private void validateEnumRef(EnumRef er, DomainMeta meta) {
-        Optional<EnumType> matchedEnum = meta.entities().stream()
-                .flatMap(e -> e.fields().stream())
-                .map(f -> f.type())
-                .filter(t -> t instanceof EnumType)
-                .map(t -> (EnumType) t)
-                .filter(et -> et.enumCode().equals(er.enumId()))
+    private void validateEnumRef(EnumRef er, RuleType ruleType) {
+        var enumObjects = ruleType.getRuleSet().getDomain().getRuleSets().stream()
+                .flatMap(rs -> rs.getObjectTypes().stream())
+                .filter(o -> o.getKind() == ObjectType.Kind.ENUM)
+                .toList();
+
+        Optional<ObjectType> matchedEnum = enumObjects.stream()
+                .filter(o -> o.getProgramCode().equals(er.enumId()))
                 .findFirst();
 
         if (matchedEnum.isEmpty()) {
             errors.add(new CompileError(er.line(), er.column(),
-                "未定义的枚举: '" + er.enumId() + "'"
-                    + "（DomainMeta 中未找到 enumCode='" + er.enumId() + "' 的字段）"));
+                "未定义的枚举: '" + er.enumId() + "'"));
             return;
         }
 
-        EnumType enumDef = matchedEnum.get();
-        boolean valueExists = enumDef.values().stream()
-                .anyMatch(v -> v.code().equals(er.value()));
+        ObjectType enumDef = matchedEnum.get();
+        boolean valueExists = enumDef.getEnumValues().stream()
+                .anyMatch(v -> v.getCode().equals(er.value()));
         if (!valueExists) {
             errors.add(new CompileError(er.line(), er.column(),
                 "枚举 " + er.enumId() + " 不含值 '" + er.value() + "'"));
         }
     }
 
-    private DomainMeta.EntityDef findEntity(DomainMeta meta, String entityId) {
-        return meta.entities().stream()
-                .filter(e -> e.id().equals(entityId))
+    private ObjectType findObjectType(RuleType ruleType, ObjectType ot) {
+        return ruleType.getRuleSet().getObjectTypes().stream()
+                .filter(o -> o.getProgramCode().equals(ot.getProgramCode()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
-                    "DomainMeta 引用了不存在的 entity: " + entityId
-                        + "（数据一致性问题，非 SimpleTS 源代码错误）"));
+                    "RuleType 引用的 objectCode='" + ot.getProgramCode() + "' 在 RuleSet 中不存在"));
     }
 
     private static String kindName(Type t) {
         if (t instanceof PrimitiveType) return "primitive";
-        if (t instanceof EnumType)      return "enum";
-        if (t instanceof ObjectType)    return "object";
+        if (t instanceof ObjectType ot) {
+            return ot.getKind() == ObjectType.Kind.ENUM ? "enum" : "object";
+        }
         if (t instanceof ListType)      return "list";
         if (t instanceof MapType)       return "map";
         return t.getClass().getSimpleName();
     }
 }
 ```
+
 
 ### 3.7 左值检查器
 
@@ -843,8 +1011,8 @@ public class TsAstParser {
 
 ## 4. 影响面
 
-- 新增整个 `com.orule.dsl` 包（~15 个类）
-- 不涉及数据库表
+- 新增 `com.orule.dsl` 包（~15 个类）+ `com.orule.common.entity` 下 5 个新实体
+- 新增 5 张数据库表：`rule_type` / `rule_argument` / `rule_return` / `rule_type_funtion` / `rule_type_exclude_funtion`
 - 不涉及外部 API
 - 依赖 GraalJS + TypeScript npm 包
 
@@ -995,9 +1163,9 @@ void vipDiscount_compileSucceed() {
             order.discount = 30
         }
         """;
-    DomainMeta meta = TestMetaFactory.orderDiscount();
-    Program ast = parser.parse(source, meta);
-    
+    RuleType ruleType = TestMetaFactory.orderDiscountRuleType();
+    Program ast = parser.parse(source, ruleType);
+
     assertThat(ast.body()).hasSize(1);
     assertThat(ast.body().get(0)).isInstanceOf(IfStmt.class);
 }
@@ -1008,9 +1176,9 @@ void objectLiteral_shouldFail() {
     String source = """
         let x = { a: 1 }
         """;
-    DomainMeta meta = TestMetaFactory.simple();
-    
-    assertThatThrownBy(() -> parser.parse(source, meta))
+    RuleType ruleType = TestMetaFactory.simpleRuleType();
+
+    assertThatThrownBy(() -> parser.parse(source, ruleType))
         .isInstanceOf(TssCompileError.class)
         .hasMessageContaining("不允许");
 }
@@ -1021,9 +1189,9 @@ void invalidEnumValue_shouldFail() {
     String source = """
         if (customer.tier == CustomerTier.GOD) { ... }
         """;
-    DomainMeta meta = TestMetaFactory.orderDiscount();
-    
-    assertThatThrownBy(() -> parser.parse(source, meta))
+    RuleType ruleType = TestMetaFactory.orderDiscountRuleType();
+
+    assertThatThrownBy(() -> parser.parse(source, ruleType))
         .isInstanceOf(TssCompileError.class)
         .hasMessageContaining("枚举 CustomerTier 不含值 'GOD'");
 }
@@ -1034,9 +1202,9 @@ void undeclaredIdentifier_shouldFail() {
     String source = """
         if (invoice.amount > 0) { ... }
         """;
-    DomainMeta meta = TestMetaFactory.orderDiscount();
-    
-    assertThatThrownBy(() -> parser.parse(source, meta))
+    RuleType ruleType = TestMetaFactory.orderDiscountRuleType();
+
+    assertThatThrownBy(() -> parser.parse(source, ruleType))
         .isInstanceOf(TssCompileError.class)
         .hasMessageContaining("未声明的标识符 'invoice'");
 }
@@ -1059,27 +1227,36 @@ void undeclaredIdentifier_shouldFail() {
 ## 7. 实施步骤
 
 ```
-1. 创建 com.orule.dsl 包
-2. 实现 AST 节点（~13 个 record）
-3. 实现 DomainMeta（Java record）
-4. 实现 TsAstParser（GraalJS 桥接）
-5. 实现 WhitelistPruner（白名单剪枝）
-6. 实现 IdentifierResolver（标识符作用域）
-7. 实现 FieldValidator（字段 + 枚举）
-8. 实现 TypeChecker（类型对齐）
-9. 实现 LValueChecker（左值合法性）
+1. 创建 com.orule.dsl 包 + AST 节点（~13 个 record）
+2. 实现 RuleType / ArgumentType / ReturnType / RuleTypeFuntion / RuleTypeExcludeFuntion 实体
+3. 实现 TsAstParser（GraalJS 桥接）
+4. 实现 WhitelistPruner（白名单剪枝）
+5. 实现 IdentifierResolver（标识符作用域）
+6. 实现 FieldValidator（字段 + 枚举，RFC-0018-bis）
+7. 实现 TypeChecker（类型对齐）
+8. 实现 LValueChecker（左值合法性）
+9. 实现 SimpleTSWhitelist（单一来源白名单）
 10. 实现错误信息模板
-11. 单元测试（80+ 用例）
-12. 集成测试（完整 VIP 示例）
-13. 性能测试
+11. 实现 DomainMeta 删除 + RuleSet/RuleType 拼装层
+12. 单元测试（80+ 用例）
+13. 集成测试（完整 VIP 示例）
+14. 性能测试
 ```
 
 ---
 
 ## 8. 关联
 
-- 上游：RFC-0015（元数据 API，提供 DomainMeta 拼装数据源）、**RFC-0031（Type 系统重构）**、**RFC-0032（ObjectType 枚举化 + Type 系统 4 Variant）**
+- 上游：RFC-0015（元数据 API，提供 RuleSet/RuleType 拼装数据源）、**RFC-0031（Type 系统重构）**、**RFC-0032（ObjectType 枚举化 + Type 系统 4 Variant）**
 - 下游：RFC-0019（SimpleTS→Groovy 代码生成器）、RFC-0023（NL→SimpleTS）
 - 平级：RFC-0020（Groovy 沙箱）— **共用 §3.10 SimpleTSWhitelist 白名单单一来源**
 - ADR：**ADR-003 中间态 DSL 采用 SimpleTS**、**ADR-006 规则源语言采用 SimpleTS**、**ADR-009 SimpleTS 为中心的星型转换架构**、**ADR-012 enum 视为 ObjectType 特殊形态**
 - 规范：[docs/dsl/SimpleTS.md](../../dsl/SimpleTS.md)
+
+---
+
+## 8.1 RFC-0018-bis 修订日志
+
+| 日期 | 修订内容 |
+|------|---------|
+| 2026-09-12 | RFC-0018-bis：废弃 DomainMeta；RuleSet 直接作为领域代表；SimpleTSParser 入口改为 `parse(source, RuleType)`；新增 RuleType/ArgumentType/ReturnType/RuleTypeFuntion/RuleTypeExcludeFuntion 实体；FieldValidator 锚点从 DomainMeta.context 下沉到 RuleType.arguments；ObjectType.Kind 新增 VOID（内置） |

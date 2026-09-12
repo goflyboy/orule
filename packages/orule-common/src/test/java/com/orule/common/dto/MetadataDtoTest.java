@@ -85,17 +85,17 @@ public class MetadataDtoTest {
     }
 
     @Test
-    @DisplayName("FunctionLibDto 字段 programCode")
-    void functionLibDto_programCodeField() {
-        FunctionLibDto dto = new FunctionLibDto(
+    @DisplayName("FuntionTypeDto 字段 programCode")
+    void funtionTypeDto_programCodeField() {
+        FuntionTypeDto dto = new FuntionTypeDto(
             "f-1", "max", "Maximum", null, "desc", "math", true);
         assertEquals("max", dto.programCode());
     }
 
     @Test
-    @DisplayName("CreateFunctionLibRequest 字段 programCode")
-    void createFunctionLibRequest_programCodeField() {
-        CreateFunctionLibRequest req = new CreateFunctionLibRequest(
+    @DisplayName("CreateFuntionTypeRequest 字段 programCode")
+    void createFuntionTypeRequest_programCodeField() {
+        CreateFuntionTypeRequest req = new CreateFuntionTypeRequest(
             "max", "Maximum", null, "desc", "math", true);
         assertEquals("max", req.programCode());
     }

@@ -4,7 +4,7 @@ import com.orule.common.model.type.FunctionSignature;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record CreateFunctionLibRequest(
+public record CreateFuntionTypeRequest(
     @NotBlank String programCode,
     @NotBlank String name,
     @NotNull FunctionSignature signature,

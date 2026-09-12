@@ -1,11 +1,11 @@
 package com.orule.server.service;
 
-import com.orule.common.dto.CreateFunctionLibRequest;
-import com.orule.common.dto.FunctionLibDto;
-import com.orule.common.dto.UpdateFunctionLibRequest;
-import com.orule.common.entity.FunctionLib;
+import com.orule.common.dto.CreateFuntionTypeRequest;
+import com.orule.common.dto.FuntionTypeDto;
+import com.orule.common.dto.UpdateFuntionTypeRequest;
+import com.orule.common.entity.FuntionType;
 import com.orule.common.exception.NotFoundException;
-import com.orule.server.repository.FunctionLibRepository;
+import com.orule.server.repository.FuntionTypeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,33 +14,33 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * FunctionLib 服务（RFC-0031 重构版）。
+ * FuntionType 服务（RFC-0031 重构版）。
  *
  * <p>signature 字段为 FunctionSignature（Type 树 JSON）。
  */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class FunctionLibService {
+public class FuntionTypeService {
 
-    private final FunctionLibRepository repo;
+    private final FuntionTypeRepository repo;
 
-    public List<FunctionLibDto> findAll() {
+    public List<FuntionTypeDto> findAll() {
         return repo.findAll().stream().map(this::toDto).toList();
     }
 
-    public List<FunctionLibDto> findByCategory(String category) {
+    public List<FuntionTypeDto> findByCategory(String category) {
         return repo.findByCategory(category).stream().map(this::toDto).toList();
     }
 
-    public FunctionLibDto findById(String id) {
+    public FuntionTypeDto findById(String id) {
         return toDto(repo.findById(id)
-            .orElseThrow(() -> new NotFoundException("FunctionLib", id)));
+            .orElseThrow(() -> new NotFoundException("FuntionType", id)));
     }
 
     @Transactional
-    public FunctionLibDto create(CreateFunctionLibRequest req) {
-        FunctionLib e = FunctionLib.builder()
+    public FuntionTypeDto create(CreateFuntionTypeRequest req) {
+        FuntionType e = FuntionType.builder()
             .id(UUID.randomUUID().toString())
             .programCode(req.programCode()).name(req.name())
             .signature(req.signature())
@@ -50,9 +50,9 @@ public class FunctionLibService {
     }
 
     @Transactional
-    public FunctionLibDto update(String id, UpdateFunctionLibRequest req) {
-        FunctionLib e = repo.findById(id)
-            .orElseThrow(() -> new NotFoundException("FunctionLib", id));
+    public FuntionTypeDto update(String id, UpdateFuntionTypeRequest req) {
+        FuntionType e = repo.findById(id)
+            .orElseThrow(() -> new NotFoundException("FuntionType", id));
         e.setName(req.name());
         e.setSignature(req.signature());
         e.setDescription(req.description());
@@ -63,12 +63,12 @@ public class FunctionLibService {
 
     @Transactional
     public void delete(String id) {
-        if (!repo.existsById(id)) throw new NotFoundException("FunctionLib", id);
+        if (!repo.existsById(id)) throw new NotFoundException("FuntionType", id);
         repo.deleteById(id);
     }
 
-    private FunctionLibDto toDto(FunctionLib e) {
-        return new FunctionLibDto(e.getId(), e.getProgramCode(), e.getName(),
+    private FuntionTypeDto toDto(FuntionType e) {
+        return new FuntionTypeDto(e.getId(), e.getProgramCode(), e.getName(),
             e.getSignature(), e.getDescription(), e.getCategory(),
             Boolean.TRUE.equals(e.getIsBuiltin()));
     }

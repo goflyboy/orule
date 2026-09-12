@@ -368,12 +368,12 @@ public class MetadataApiIntegrationTest {
             .andExpect(jsonPath("$.data.type.valueType.kind").value("primitive"));
     }
 
-    // ===== FunctionLib =====
+    // ===== FuntionType =====
 
     @Test
     @Order(30)
-    @DisplayName("FunctionLib: POST creates a function library entry (signature 为 JSON 树)")
-    void functionLibCreate() throws Exception {
+    @DisplayName("FuntionType: POST creates a function type entry (signature 为 JSON 树)")
+    void funtionTypeCreate() throws Exception {
         String body = """
             {"programCode":"SUM","name":"Sum",
              "signature":{
@@ -382,7 +382,7 @@ public class MetadataApiIntegrationTest {
              },
              "description":"sum numbers","category":"math","builtin":true}
             """;
-        mvc.perform(post("/api/v1/function-libs")
+        mvc.perform(post("/api/v1/funtion-types")
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.programCode").value("SUM"))
@@ -393,9 +393,9 @@ public class MetadataApiIntegrationTest {
 
     @Test
     @Order(31)
-    @DisplayName("FunctionLib: GET ?category=math filters list")
-    void functionLibFilter() throws Exception {
-        mvc.perform(post("/api/v1/function-libs")
+    @DisplayName("FuntionType: GET ?category=math filters list")
+    void funtionTypeFilter() throws Exception {
+        mvc.perform(post("/api/v1/funtion-types")
                 .contentType(MediaType.APPLICATION_JSON).content("""
                     {"programCode":"AVG","name":"Avg",
                      "signature":{
@@ -405,7 +405,7 @@ public class MetadataApiIntegrationTest {
                      "description":"avg","category":"math","builtin":true}
                     """)).andExpect(status().isOk());
 
-        mvc.perform(get("/api/v1/function-libs?category=math"))
+        mvc.perform(get("/api/v1/funtion-types?category=math"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data").isArray())
             .andExpect(jsonPath("$.data[?(@.programCode=='AVG')]").exists());
@@ -413,9 +413,9 @@ public class MetadataApiIntegrationTest {
 
     @Test
     @Order(32)
-    @DisplayName("FunctionLib: PUT updates name and signature")
-    void functionLibUpdate() throws Exception {
-        MvcResult c = mvc.perform(post("/api/v1/function-libs")
+    @DisplayName("FuntionType: PUT updates name and signature")
+    void funtionTypeUpdate() throws Exception {
+        MvcResult c = mvc.perform(post("/api/v1/funtion-types")
                 .contentType(MediaType.APPLICATION_JSON).content("""
                     {"programCode":"UPD_ME","name":"upd",
                      "signature":{
@@ -426,7 +426,7 @@ public class MetadataApiIntegrationTest {
                     """)).andExpect(status().isOk()).andReturn();
         String id = om.readTree(c.getResponse().getContentAsString()).get("data").get("id").asText();
 
-        mvc.perform(put("/api/v1/function-libs/" + id)
+        mvc.perform(put("/api/v1/funtion-types/" + id)
                 .contentType(MediaType.APPLICATION_JSON).content("""
                     {"name":"upd v2",
                      "signature":{

@@ -2,7 +2,7 @@ package com.orule.common.dto;
 
 import com.orule.common.model.type.FunctionSignature;
 
-public record UpdateFunctionLibRequest(
+public record UpdateFuntionTypeRequest(
     String name,
     FunctionSignature signature,
     String description,

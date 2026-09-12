@@ -268,8 +268,13 @@ import java.util.List;
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class ObjectType {
 
-    /** ObjectType 种类：CLASS（普通对象）/ ENUM（枚举） */
-    public enum Kind { CLASS, ENUM }
+    /**
+     * ObjectType 种类：CLASS（普通对象）/ ENUM（枚举）/ VOID（内置无返回值）
+     *
+     * <p><b>RFC-0018-bis 修订</b>：新增 VOID。
+     * VOID 是内置类型，不写入 object_type 表，用于 RuleReturn 表示"无返回"。
+     */
+    public enum Kind { CLASS, ENUM, VOID }
 
     @Id
     private String id;

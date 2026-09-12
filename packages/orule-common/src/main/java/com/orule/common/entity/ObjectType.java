@@ -37,7 +37,7 @@ import java.util.List;
 public class ObjectType {
 
     /** ObjectType 种类：CLASS（普通对象）/ ENUM（枚举） */
-    public enum Kind { CLASS, ENUM }
+    public enum Kind { CLASS, ENUM, VOID }
 
     @Id
     private String id;

@@ -279,82 +279,76 @@ export interface CallExpr   { kind: 'CallExpr'; callee: MemberAccess; args: Expr
 
 
 
-## 7. 元数据 DomainMeta
+## 7. 元数据（元数据模型）
 
-SimpleTS 的"上下文已限定"靠 `DomainMeta` 落地。
+> **RFC-0018-bis 修订**：DomainMeta 概念已废弃。入口变量（context）下沉到 RuleType.arguments。
+> RuleSet 本身就是领域代表（元数据索引）。
+>
+> - 入口变量定义 → RuleType.arguments
+> - 函数签名定义 → FuntionType（entity 层）
+> - 返回值类型 → ReturnType（VOID 时 objectType = null）
 
-> **RFC-0031 修订**：Type 系统采用 sealed interface 风格的 5 个 Variant；DomainMeta 不再有 `enums` 顶层字段，
-> enum 通过 `AttributeField.type.kind === 'enum'` 内联。
+### 7.1 RuleSet / RuleType（元数据索引）
 
 ```ts
-// ===== Type 5 个 Variant（RFC-0031） =====
+// ===== 元数据索引：RuleSet = 领域代表 =====
 
-export interface PrimitiveType {
-  kind: 'primitive';
-  name: 'string' | 'number' | 'boolean' | 'date';
-}
-
-export interface EnumValue {
-  code: string;
-  label?: string;
-  sortOrder?: number;
-}
-
-export interface EnumType {
-  kind: 'enum';
-  enumCode: string;                          // "CustomerTier"
-  values: readonly EnumValue[];              // 内联（无需独立 enum 表）
-}
-
-export interface ObjectType {
-  kind: 'object';
-  objectCode: string;                        // 引用 EntityDef.id
-}
-
-export interface ListType {
-  kind: 'list';
-  elementType: Type;                         // 嵌套
-}
-
-export interface MapType {
-  kind: 'map';
-  keyType: Type;                             // 嵌套
-  valueType: Type;                           // 嵌套
-}
-
-export type Type = PrimitiveType | EnumType | ObjectType | ListType | MapType;
-
-// ===== Entity & Field =====
-
-export interface EntityField {
-  name: string;
-  type: Type;                                // 5 个 Variant 之一
-  nullable?: boolean;
-  writable?: boolean;                        // 默认 true；false 表示只读字段
-}
-
-export interface EntityDef {
-  kind: 'Entity';
-  id: string;                                // "Customer"
-  fields: readonly EntityField[];
-}
-
-export interface ContextVar {
-  name: string;                              // "customer"
-  type: ObjectType;                          // -> EntityDef.id（仅允许 object 类型）
-  nullable?: boolean;
-}
-
-export interface DomainMeta {
+export interface RuleSet {           // entity.RuleSet
   id: string;
-  entities: readonly EntityDef[];
-  context:  readonly ContextVar[];           // 入口变量清单
+  code: string;                     // 规则集类型 code
+  name: string;
+  objectTypes: ObjectType[];        // 本规则集可用的领域对象
+  functionTypes: FuntionType[];     // 本规则集可用的函数 SDK 全集
+  ruleTypes: RuleType[];            // 本规则集下的规则类型
+}
+
+// ===== 规则类型：本质是一个空函数 =====
+
+export interface RuleType {         // entity.RuleType
+  id: string;
+  code: string;                     // 规则类型 code（如"订单校验规则"）
+  name: string;
+  description: string;
+  validatable: boolean;             // 默认 true；false 时跳过 RFC-0018 §3.6 字段校验
+  arguments: ArgumentType[];         // 函数入参（对应 SimpleTS 中的入口变量）
+  returnType: ReturnType;           // 函数出参
+  functionTypes: FuntionType[];     // 允许调用的函数 SDK（声明式，不隐式继承）
+  excludeFunctionTypes: string[];    // 审计注释：应被排除的函数列表
+}
+
+// ===== 入参定义 =====
+
+export interface ArgumentType {     // entity.ArgumentType
+  id: string;
+  programCode: string;              // 参数名（SimpleTS 中的入口变量名）
+  objectType: ObjectType;           // 类型（必须是 RuleSet.objectTypes 中的元素）
+  nullable: boolean;                // null 是否合法
+  writable: boolean;                // 是否可被 SimpleTS 赋值
+}
+
+// ===== 出参定义 =====
+
+export interface ReturnType {      // entity.ReturnType
+  id: string;
+  objectType: ObjectType | null;    // null 表示 VOID（无返回值）
+  nullable: boolean;               // nullable=false 时返回 null 视为校验失败
 }
 ```
 
-> **MVP 嵌套约束**（RFC-0031 §3.5.2）：`ObjectType` 字段在 SimpleTS 表达式中**不能继续访问内部属性**。
-> 即不允许 `customer.address.city`（address 是 object 字段）。`list` / `map` 类型字段也不允许访问内部元素。
-> 复杂场景通过 FunctionLib（其签名采用相同 Type 树）+ 字段拍平实现。
+### 7.2 Type 系统（RFC-0032，不变）
+
+```ts
+// ===== Type 4 个 Variant（RFC-0032）=====
+
+export interface PrimitiveType { kind: 'primitive'; name: 'string'|'number'|'boolean'|'date'; }
+export interface ObjectType    { kind: 'object';   objectCode: string; }
+export interface ListType      { kind: 'list';     elementType: Type; }
+export interface MapType      { kind: 'map';      keyType: Type; valueType: Type; }
+export type Type = PrimitiveType | ObjectType | ListType | MapType;
+```
+
+> **MVP 嵌套约束**（RFC-0031 §3.5.2）：`ObjectType` / `ListType` / `MapType` 字段在 SimpleTS 表达式中**不能继续访问内部属性**。
+> 即不允许 `customer.address.city`、`items[0]` 等下钻操作。
 
 ### 7.2 ObjectInst（运行时实例）
 

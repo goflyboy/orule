@@ -11,7 +11,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 /**
- * FunctionLib 实体（RFC-0032 §3.3 重命名）。
+ * FuntionType 实体（RFC-0018-bis 重命名，原 FunctionLib）。
  *
  * <p>signature 字段保持 JSON（沿用 RFC-0031），存 {@code FunctionSignature}（参数 + 返回 Type 树）。
  * 字段名 code → programCode，列名同步调整。
@@ -23,7 +23,7 @@ import java.time.Instant;
     @UniqueConstraint(name = "uk_func_program_code", columnNames = "program_code")
 })
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
-public class FunctionLib {
+public class FuntionType {
     @Id
     private String id;
 
