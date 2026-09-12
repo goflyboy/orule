@@ -1,14 +1,14 @@
 package com.orule.server.service;
 
 import com.orule.common.dto.*;
+import com.orule.common.entity.AttributeType;
 import com.orule.common.entity.DomainType;
 import com.orule.common.entity.ObjectType;
-import com.orule.common.entity.AttributeType;
 import com.orule.common.exception.ConflictException;
 import com.orule.common.exception.NotFoundException;
+import com.orule.server.repository.AttributeTypeRepository;
 import com.orule.server.repository.DomainTypeRepository;
 import com.orule.server.repository.ObjectTypeRepository;
-import com.orule.server.repository.AttributeTypeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * 元数据域服务（RFC-0031 重构版）。
+ *
+ * <p>不再管理独立 enum 表；enum 定义内联到 AttributeType.type 中。
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -138,7 +143,8 @@ public class MetadataService {
         AttributeType e = AttributeType.builder()
             .id(UUID.randomUUID().toString())
             .object(obj).code(req.code()).name(req.name())
-            .dataType(req.dataType()).isRequired(req.required())
+            .dataType(req.dataType()).type(req.type())
+            .isRequired(Boolean.TRUE.equals(req.required()))
             .defaultValue(req.defaultValue()).description(req.description()).build();
         return toAttrDto(attrRepo.save(e));
     }
@@ -171,6 +177,7 @@ public class MetadataService {
         return new AttributeTypeDto(a.getId(),
             a.getObject() != null ? a.getObject().getId() : null,
             a.getCode(), a.getName(), a.getDataType(),
+            a.getType(),
             Boolean.TRUE.equals(a.getIsRequired()),
             a.getDefaultValue(), a.getDescription());
     }

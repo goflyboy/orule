@@ -1,6 +1,9 @@
 # RFC-0015: 元数据域 CRUD API
 
-> **状态**：DRAFT · **优先级**：P0 · **预计工作量**：3d · **阶段**：S1
+> **状态**：SUPERSEDED · **优先级**：P0 · **预计工作量**：3d · **阶段**：S1
+> **RFC-0031 修订**：本 RFC 已被 [RFC-0031-Type系统重构.md](RFC-0031-Type系统重构.md) 部分覆盖；
+> `EnumType` / `EnumValue` Controller/Service 全部删除；`AttributeType` API 改用 Type 树（type_json）；
+> `FunctionLib` signature 改用 JSON。详见 RFC-0031 §3.3-§3.4。
 
 ---
 

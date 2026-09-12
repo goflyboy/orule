@@ -1,11 +1,12 @@
 package com.orule.common.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import com.orule.common.model.type.Type;
 
 public record UpdateAttributeTypeRequest(
-    @NotBlank String name,
-    @NotBlank String dataType,
-    boolean required,
+    String name,
+    String dataType,
+    Type type,                    // 完整 Type 结构（可选更新）
+    Boolean required,
     String defaultValue,
     String description
 ) {}

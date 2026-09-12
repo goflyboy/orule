@@ -13,6 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * FunctionLib 服务（RFC-0031 重构版）。
+ *
+ * <p>signature 字段为 FunctionSignature（Type 树 JSON）。
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -37,7 +42,8 @@ public class FunctionLibService {
     public FunctionLibDto create(CreateFunctionLibRequest req) {
         FunctionLib e = FunctionLib.builder()
             .id(UUID.randomUUID().toString())
-            .code(req.code()).name(req.name()).signature(req.signature())
+            .code(req.code()).name(req.name())
+            .signature(req.signature())
             .description(req.description()).category(req.category())
             .isBuiltin(req.builtin()).build();
         return toDto(repo.save(e));

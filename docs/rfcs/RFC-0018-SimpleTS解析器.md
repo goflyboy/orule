@@ -1,6 +1,8 @@
 # RFC-0018: SimpleTS 解析器（白名单剪枝 + 字段校验）
 
 > **状态**：DRAFT · **优先级**：P0 · **预计工作量**：5d · **阶段**：S3
+> **RFC-0031 修订**：DomainMeta 采用 RFC-0031 的 5 个 Variant；`FieldValidator` 需新增
+> "ObjectType/ListType/MapType 字段不可继续访问内部属性" 的校验（详见 RFC-0031 §3.5.2）。
 
 ---
 

@@ -71,6 +71,10 @@
 
 - [RFC-0030 MVP 验收 + 演示 Demo](RFC-0030-MVP验收演示.md) — DRAFT
 
+## S10 Type 系统增强（MVP 后）
+
+- [RFC-0031 Type 系统重构 — JSON 树扁平化 + 5 个 Variant](RFC-0031-Type系统重构.md) — DRAFT
+
 ## 状态说明
 
 | 状态 | 含义 |
@@ -82,3 +86,8 @@
 | DONE | 已完成 |
 | REJECTED | 已拒绝 |
 | SUPERSEDED | 已被新 RFC 取代 |
+
+TODO：
+RFC-0032：SimpleTS 支持 list/map/object 嵌套访问
+RFC-0033：enum 全局唯一字典（避免重复内联）
+RFC-0034：运行时类型检查与算法 API

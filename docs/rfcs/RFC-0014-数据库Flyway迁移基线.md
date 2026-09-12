@@ -1,6 +1,9 @@
 # RFC-0014: 数据库 Flyway 迁移基线（V1~V5）
 
-> **状态**：DRAFT · **优先级**：P0 · **预计工作量**：2d · **阶段**：S1
+> **状态**：SUPERSEDED · **优先级**：P0 · **预计工作量**：2d · **阶段**：S1
+> **RFC-0031 修订**：本 RFC 已被 [RFC-0031-Type系统重构.md](RFC-0031-Type系统重构.md) 部分覆盖；
+> 具体差异：`attribute_type` 表增加 `type_json` 列、`enum_type` / `enum_value` 表删除、
+> `function_lib.signature` 改为 JSON。详见 RFC-0031 §3.2。
 
 ---
 
