@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>Covers: upload/download consistency, sha256, path-traversal protection,
  * delete idempotency, list, exists, getUrl.
  */
-class LocalStorageTest {
+public class LocalStorageTest {
 
     @TempDir
     Path tmp;

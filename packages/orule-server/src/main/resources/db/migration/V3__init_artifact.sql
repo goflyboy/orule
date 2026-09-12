@@ -27,7 +27,7 @@ CREATE TABLE rule_set_artifact (
     file_size       BIGINT       NOT NULL DEFAULT 0,
     sha256          VARCHAR(64)  NOT NULL,
     rule_count      INT          NOT NULL DEFAULT 0,
-    included_versions CLOB,
+    included_versions TEXT,
     concurrency     INT          NOT NULL DEFAULT 1,
     created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
