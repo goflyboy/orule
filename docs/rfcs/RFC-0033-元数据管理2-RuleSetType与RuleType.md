@@ -566,20 +566,200 @@ GET    /api/v1/funtion-types/{id}/rule-set-types  # 反向：哪些 RuleSetType 
 
 ---
 
-## 5. 测试计划（占位 — 下次会话补完）
+## 5. 测试计划
 
-> 见下次会话。本次仅保留 §1~§4。
+### 5.1 单元测试（实体层）
 
-## 6. 风险（占位 — 下次会话补完）
+| 测试目标 | 用例 | 期望 |
+|---------|------|------|
+| `RuleSetType` 实体构造 | `ruleSetTypeBuilder_shouldBuild` | 必填字段齐备时构造成功 |
+| `RuleSetType` 唯一约束 | `duplicateCodeInSameDomain_shouldFail` | 同 DomainType 下重复 code 抛 `DataIntegrityViolationException` |
+| `RuleType` 实体构造 | `ruleTypeBuilder_shouldBuild` | 必填字段齐备时构造成功 |
+| `RuleType` JSON 拍平序列化 | `argumentsJson_shouldRoundTrip` | `RuleTypeArguments` → JSON → 反序列化结果一致 |
+| `RuleTypeArguments.ArgumentType` 内嵌 record | `nestedRecords_shouldSerializeCorrectly` | 嵌套 record 序列化为嵌套 JSON 对象 |
+| `FuntionType` 重命名后兼容 | `funtionTypeMapper_legacyDataShouldWork` | V1 种子数据能通过新实体类读取 |
 
-## 7. 实施步骤（占位 — 下次会话补完）
+### 5.2 Repository 测试
 
-## 8. 关联（占位 — 下次会话补完）
+| 测试 | 期望 |
+|------|------|
+| `RuleSetTypeRepository.findByDomainId` | 返回该 domain 下所有 RuleSetType |
+| `RuleSetTypeRepository.findByDomainIdAndCode` | 唯一返回匹配项 |
+| `RuleTypeRepository.findByRuleSetTypeId` | 返回该 RuleSetType 下所有 RuleType |
+| `RuleTypeRepository.findByCode` | 跨 RuleSetType 全局唯一 code 查 |
+| `FuntionTypeRepository.findByRuleSetTypeId`（@Query 跨中间表）| 返回 RuleSetType 已用的 SDK 集合 |
+
+### 5.3 Service 测试（不变式校验）
+
+| 不变式 | 测试用例 | 期望 |
+|--------|---------|------|
+| #1 arguments.objectTypeCode ⊆ RuleSetType.objectTypes | `createRuleType_argObjectTypeNotInRs_shouldFail` | 抛 `MetadataInvariantViolationException("ArgumentType xxx.objectTypeCode 未在 RuleSetType.objectTypes 中")` |
+| #2 returnType.objectTypeCode ⊆ objectTypes ∪ {VOID} | `createRuleType_returnTypeUnknown_shouldFail` | 抛异常 |
+| #2 returnType VOID | `createRuleType_voidReturn_shouldPass` | null objectTypeCode 通过 |
+| #3 functionTypeCodes ⊆ RuleSetType.functionTypes | `createRuleType_funcTypeNotInRs_shouldFail` | 抛异常 |
+| #4 functionTypeCodes ∩ excludeFunctionTypeCodes = ∅ | `createRuleType_excludeAndIncludeIntersect_shouldFail` | 抛异常 |
+| #5 RuleSet.type_code 存在性 | `createRuleSet_unknownTypeCode_shouldFail` | 抛异常（创建时校验，运行时不阻塞） |
+| #6 Rule.type_code 在 RuleSet 对应的 RuleSetType 范围内 | `createRule_ruleTypeNotInRs_shouldFail` | 抛异常 |
+
+### 5.4 REST API 集成测试（MockMvc）
+
+| 端点 | 用例 | 期望 |
+|------|------|------|
+| `POST /api/v1/rule-set-types` | 完整 RuleSetType payload | 返回 200 + 实体 JSON；DB 持久化；rule_set_type_object_type / rule_set_type_funtion_type 中间表写入 |
+| `POST /api/v1/rule-set-types` | 缺 `domain_id` | 返回 400 ValidationError |
+| `POST /api/v1/rule-set-types` | arguments 引用未注册的 ObjectType | 返回 422 UnprocessableEntity（业务校验失败） |
+| `PUT /api/v1/rule-set-types/{id}` | 修改关联 objectTypes 列表（删除仍在 RuleType 引用的） | 返回 409 Conflict（级联保护） |
+| `DELETE /api/v1/rule-set-types/{id}` | 已有 RuleSet 引用 | 返回 409 Conflict（不允许 cascade） |
+| `DELETE /api/v1/rule-set-types/{id}` | 无 RuleSet 引用 | 返回 200，cascade 删除 rule_type + 中间表 |
+| `POST /api/v1/rule-set-types/{rstId}/rule-types` | 嵌套创建 RuleType | 返回 201 + 实体 |
+| `GET /api/v1/rule-set-types/{rstId}/rule-types` | 列表 | 返回 RuleType 列表，arguments JSON 自动反序列化 |
+| `GET /api/v1/funtion-types/{id}/rule-set-types` | 反向资源 | 返回引用该 FuntionType 的 RuleSetType 列表 |
+| `GET /api/v1/funtion-types?category=math` | 列表过滤 | 返回该 category 下的所有 FuntionType |
+
+### 5.5 JSON 拍平反序列化测试
+
+| 场景 | 用例 | 期望 |
+|------|------|------|
+| 合法 JSON | `deserialize_validArgumentsJson_shouldMap` | 全部字段映射正确 |
+| 缺 arguments | `deserialize_missingArgumentsField_shouldFail` | 抛 `JsonMappingException` |
+| arguments 类型错误 | `deserialize_argumentsIsString_shouldFail` | 抛 `JsonMappingException` |
+| arguments 数组为空 | `deserialize_emptyArgumentsArray_shouldPass` | 入参可为空（规则无入参合法） |
+| functionTypeCodes 引用不存在的 code | Service 层 `validateInvariants` | 抛 `MetadataInvariantViolationException` |
+
+### 5.6 性能 / 压力
+
+| 场景 | 期望 |
+|------|------|
+| 单次 RuleSetType 查询（含 objectTypes / functionTypes）< 50ms | 1000 RuleSetType 数据集下 |
+| RuleType JSON 字段查询 | MySQL JSON 函数 `JSON_CONTAINS` / `->>` 性能可接受 |
+| V7 迁移脚本在 1 万条 function_lib 数据下完成时间 | < 5s（rename 仅改注释，不动数据） |
 
 ---
 
-### 8.1 修订日志
+## 6. 风险
+
+| 风险 | 等级 | 缓解 |
+|------|------|------|
+| **JSON 拍平导致 SQL JOIN 困难**（RuleType.arguments[*].objectTypeCode 字符串引用，无 FK）| 🟡 中 | 应用层不变式校验保证一致性；运营后台 / 报表用反规范化视图；MVP 数据量小（百级 RuleType），后期引入 ES 反查 |
+| **V7 Flyway ADD 表后，旧 Rule 引用 RuleSetType.code 缺失导致启动失败** | 🔴 高 | V7 同时 INSERT 2 条种子 RuleSetType 演示数据；CI 测试 0→N RuleSetType 启动 |
+| **RuleSetType / RuleType 弱关联（字符串 code）与 Rule / RuleSet 实例层的 type_code 长期漂移** | 🟠 中-高 | 启动期 `MetadataIntegrityChecker` 自检；DB 视图 `v_orphan_rules` 显示孤儿 Rule，运营工具每月巡检 |
+| **JSON 列 schema 演进复杂**（加字段要兼容老数据）| 🟡 中 | `RuleTypeArguments` 用 Jackson `@JsonIgnoreProperties(ignoreUnknown = true)`；版本字段 `schema_version` 显式标注 |
+| **不变式校验逻辑 bug 导致脏数据** | 🟠 中-高 | Service 层校验 + Repository 层 `@Check` 注解双重保护；测试覆盖所有 6 条不变式 |
+| **RuleSetType 删除时 cascade 影响** | 🟡 中 | 默认 ON DELETE RESTRICT（不允许 cascade）；必须先解除 Rule 关联才能删除 RuleSetType |
+| **FuntionType 重命名后旧 API 路径 `/function-libs` 客户端未同步** | 🟢 低 | RFC-0018-bis 提交 1590cfc 已改；本 RFC 仅作为记录，不再二次重命名 |
+
+---
+
+## 7. 实施步骤
+
+### 7.1 步骤总览（约 4d）
+
+```
+Day 1：V7 DDL + FuntionType 实体调整
+  1.1 写 V7__rule_set_type_and_rule_type.sql（含种子数据）
+  1.2 验证：mvn flyway:migrate 在 dev DB 上无错
+  1.3 FuntionType 实体加 @ManyToMany ruleSetTypes（反向） + 注释更新
+
+Day 2：RuleSetType / RuleType 实体 + Repository
+  2.1 RuleSetType.java + 唯一约束测试
+  2.2 RuleType.java + RuleTypeArguments 嵌套 record + JSON 列映射
+  2.3 RuleSetTypeRepository / RuleTypeRepository / 中间表 JPQL @Query
+
+Day 3：Service 层 + 不变式校验
+  3.1 RuleSetTypeService CRUD + 嵌套 RuleType 写入
+  3.2 InvariantValidator（6 条不变式断言器，独立类便于复用）
+  3.3 MetadataIntegrityChecker 启动期自检（弱关联漂移检查）
+  3.4 MetadataInvariantViolationException + RFC 0015 的 Result 包装
+
+Day 4：REST API + 集成测试
+  4.1 RuleSetTypeController（6 个端点）
+  4.2 RuleTypeController（嵌套 5 个端点，复用 RuleSetTypeRepository）
+  4.3 FuntionType 反向资源端点
+  4.4 IntegrationTest 覆盖所有 §5.4 用例
+  4.5 RFC-0018-bis §3.3.1 字段引用回归
+```
+
+### 7.2 任务拆解
+
+| # | 任务 | 估算 | 依赖 |
+|---|------|------|------|
+| 1 | V7__rule_set_type_and_rule_type.sql | 0.3d | RFC-0014 |
+| 2 | RuleSetType 实体 | 0.3d | 1 |
+| 3 | RuleType 实体 + RuleTypeArguments record | 0.4d | 1 |
+| 4 | 3 个 Repository + JPQL @Query | 0.3d | 2, 3 |
+| 5 | InvariantValidator + 6 条不变式 | 0.5d | 2, 3 |
+| 6 | RuleSetTypeService + RuleTypeService | 0.4d | 4, 5 |
+| 7 | MetadataIntegrityChecker 启动期 | 0.3d | 4 |
+| 8 | RuleSetTypeController + RuleTypeController | 0.3d | 6 |
+| 9 | DTO + Request/Response | 0.3d | 6 |
+| 10 | 集成测试覆盖 §5.4 | 0.4d | 8, 9 |
+| 11 | 单元测试覆盖 §5.1~§5.3 | 0.3d | 5 |
+| 12 | RFC-0018-bis §3.3 引用回归 + 编译通过 | 0.2d | 全部 |
+| **总计** | | **4.0d** | |
+
+### 7.3 提交拆分建议
+
+| PR | 内容 | 关联 issue |
+|----|------|-----------|
+| PR-1 | V7 SQL + RuleSetType/RuleType 实体 + Repository | RFC-0033 §3.2 §3.3 §3.5 |
+| PR-2 | InvariantValidator + Service 层 | RFC-0033 §3.7 |
+| PR-3 | Controller + DTO + 集成测试 | RFC-0033 §3.6 §5.4 |
+| PR-4 | MetadataIntegrityChecker 启动期自检 | RFC-0033 §3.7（不变式 #5 #6） |
+
+---
+
+## 8. 关联
+
+### 8.1 上游（前置 / 依赖）
+
+- **[RFC-0014 数据库 Flyway 迁移基线](RFC-0014-数据库Flyway迁移基线.md)** — V7 在 V1~V5 基础上 ADD；不重写 V1
+- **[RFC-0015 元数据域 CRUD API](RFC-0015-元数据域CRUD-API.md)** — SUPERSEDED；V7 端点是 RFC-0015 的复活延展
+- **[RFC-0031 Type 系统重构](RFC-0031-Type系统重构.md)** — Type 4 Variant 落地，本 RFC 不引入新 Type 形态
+- **[RFC-0032 ObjectType 枚举化 + Type 系统简化](RFC-0032-ObjectType枚举化与Type系统简化.md)** — ObjectType.Kind 加 VOID，本 RFC §3.3 RuleTypeArguments.ReturnType.objectTypeCode=null 对应 VOID
+- **[RFC-0018 SimpleTS 解析器（含 RFC-0018-bis）](RFC-0018-SimpleTS解析器.md)** — 仅消费 RuleType.arguments / .returnType / .functionTypes / .validatable
+
+### 8.2 下游（被依赖）
+
+- **RFC-0016 规则域 + 状态机 API** — `Rule.type_code` 与 `RuleSet.type_code` 通过本 RFC §3.7 不变式 #5 #6 与 RuleType / RuleSetType 弱关联
+- **RFC-0019 SimpleTS → Groovy 代码生成器** — 通过 RuleType.arguments 拼装 Groovy 函数签名
+- **RFC-0020 Groovy 沙箱** — 通过 RuleType.functionTypeCodes 控制可用 SDK 白名单
+- **RFC-0023 NL → SimpleTS LLM 调用** — 通过 RuleType.arguments Schema 注入 LLM prompt
+
+### 8.3 平级
+
+- **RFC-0000 MVP RFC 总览** — RFC-0033 已加入总览表
+- **ADR-012 enum 视为 ObjectType 特殊形态** — RuleTypeArguments.ReturnType.objectTypeCode=null 对应 VOID 形态
+
+### 8.4 ADR 引用
+
+- **ADR-006 规则源语言采用 SimpleTS** — RuleType 是 SimpleTS 编译入口的元数据依据
+- **ADR-009 SimpleTS 为中心的星型转换架构** — RuleType.arguments 是 NL↔SimpleTS↔Groovy 链路的关键类型签名
+
+### 8.5 文档引用
+
+- [docs/dsl/SimpleTS.md §7 元数据（元数据模型）](../../dsl/SimpleTS.md) — 同步记录 RuleSetType / RuleType 概念
+- [docs/04-数据模型.md §4.2](../../04-数据模型.md) — 元数据域章节补充 RFC-0033 的 ER 关系
+- [docs/05-技术模型.md §5.x](../../05-技术模型.md) — RuleType JSON 拍平的存储权衡说明
+
+---
+
+## 9. 决策点（待最终确认）
+
+> 以下决策点当前按本 RFC 设计推荐方案落实。如有变更需在 RFC-0034 中补充。
+
+| 决策点 | 当前选择 | 替代方案 |
+|--------|---------|---------|
+| RuleSetType / RuleSet 的关系 | 弱关联（字符串 type_code）| 强 FK（删除 RuleSetType 时 cascade）|
+| RuleType 字段拍平形式 | JSON 单列（不建独立小表）| 4 张小表（arguments / returnType / functionTypes / excludeFunctionTypes）|
+| RuleSetType 与 DomainType 关系 | 1:N（必须挂领域）| 独立（跨领域共享 RuleSetType 模板）|
+| FuntionType 重命名是否同时改 SQL 表名 | 改类名不改表名 | 一并改表名（破坏性更大）|
+| RuleSet / Rule 上是否加 FK 强引用 RuleSetType / RuleType | 弱引用（允许孤儿）| 强引用（必须先有类型才能建规则）|
+| arguments JSON 拍平是否分版本字段 | 暂不（用 Jackson `@JsonIgnoreProperties`）| 显式 schema_version 列 |
+
+---
+
+## 10. 修订日志
 
 | 日期 | 修订内容 |
 |------|---------|
-| 2026-09-12 | 新增 RFC-0033：RuleSetType / RuleType 元数据层；V7 DDL 设计；RuleType JSON 拍平；FuntionType 重命名；REST API 设计；不变式 6 条 |
+| 2026-09-12 | 新增 RFC-0033 §1~§4：摘要 + 动机 + 详细设计（实体 + ER 图 + V7 DDL + REST API + 不变式 + 影响面）|
