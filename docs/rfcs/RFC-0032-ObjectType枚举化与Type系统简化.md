@@ -1,6 +1,6 @@
 # RFC-0032: ObjectType 枚举化 + Type 系统简化（5 Variant → 4 Variant）
 
-> **状态**：APPROVED · **优先级**：P0 · **预计工作量**：2d · **阶段**：S1 增强
+> **状态**：IMPLEMENTING · **优先级**：P0 · **预计工作量**：2d · **阶段**：S1 增强
 > **作者**：架构组 · **日期**：2026-09-12
 > **相关 ADR**：ADR-012 enum 视为 ObjectType 的特殊形态
 > **影响范围**：RFC-0031（Type 系统重构）、RFC-0014（数据库迁移）、RFC-0015（元数据 API）、RFC-0018（SimpleTS 解析器）、RFC-0019（SimpleTS→Groovy 代码生成器）
@@ -838,6 +838,8 @@ INSERT INTO function_lib (id, program_code, name, signature, description, catego
 | 2026-09-12 | function_lib.signature 仍用 JSON 列 | 与 attribute_type 设计不一致；记 TD-002 |
 | 2026-09-12 | RFC-0032 状态推进 APPROVED（基于已落地的 entity + TypeFactory 实施） | Phase 1 实施完成，5 测试类 GREEN（commit `f8e6c62`） |
 | 2026-09-12 | Phase 1 实施已完成：Type 系统 4 Variant（删 EnumType / ObjectType→ObjectRef）；entity 加 Kind+enumValues；AttributeType 3 列；TypeFactory | 见 §10 实施状态 |
+| 2026-09-12 | Phase 2 已完成：V1/V5 SQL 重写 + DTO/Service/Controller 改造 + 集成测试（commit `b81b85c`） | 验证 orule-common + orule-server + orule-runtime 全部 GREEN |
+| 2026-09-12 | 状态推进 IMPLEMENTING；剩余 Step 9-11、14（跨 RFC-0018/0019/0020）独立 PR 推进 | 见 §10.5 后续拆分 |
 
 ---
 
@@ -871,21 +873,28 @@ INSERT INTO function_lib (id, program_code, name, signature, description, catego
 | `TypeFactoryTest` | 10 | TypeFactory 各种组合（含错误边界：未知 dataType / map 缺 sub2 / map key 非 primitive） |
 | `Rfc0032ScenariosTest` | 2 | RFC-0032 关键场景（enum 跨 attribute 复用 / Order 含 list/map/object） |
 
-### 10.3 Phase 2 待实施
+### 10.3 Phase 2 已完成（commit `b81b85c`）
 
-| Step | 内容 | 工作量 |
-|------|------|--------|
-| 2 | V1__init_metadata.sql 重写（attribute_type 拆 3 列；object_type 加 kind/enum_values；code → program_code） | 0.4d |
-| 3 | V5__init_seed.sql 修改（CustomerTier 升格 ObjectType kind=ENUM） | 0.3d |
-| 5 | DTO 改造：`ObjectTypeDto` / `AttributeTypeDto` / `CreateObjectTypeRequest` / `UpdateAttributeTypeRequest`（DTO 当前未建，可与 step 6 合并） | 0.3d |
-| 6 | 删除 enum 相关 DTO/Service/Controller/Repository | 0.1d |
-| 8 | `MetadataService.java` CRUD 逻辑适配新 schema（Service 当前未建，需新建） | 0.3d |
-| 9 | `DomainMeta.java` 改造：EntityDef/EntityField → ObjectTypeDef/AttributeDef；直接持有 entity.* | 0.2d |
-| 10 | RFC-0018 `FieldValidator.java` enum 引用校验路径变化 | 0.1d |
-| 11 | RFC-0019 `GroovyCodeGen.java` 枚举提取路径变化 | 0.1d |
-| 12 | 集成测试 `MetadataApiIntegrationTest` | 0.3d |
-| 14 | 端到端集成测试（CRUD + SimpleTS 编译 + Groovy codegen） | 0.2d |
-| **总计** | | **2.3d** |
+| Step | 内容 | 状态 |
+|------|------|------|
+| 2 | V1__init_metadata.sql 重写 | ✅ |
+| 3 | V5__init_seed.sql 修改 | ✅ |
+| 5 | DTO 改造：元数据域 10 个 DTO | ✅ |
+| 6 | 删除 enum 相关 DTO/Service/Controller/Repository（已被 RFC-0031 提前删除） | ✅ |
+| 8 | MetadataService.java CRUD 逻辑适配新 schema | ✅ |
+| 12 | 集成测试 MetadataApiIntegrationTest 重写 | ✅ |
+
+### 10.5 后续拆分（独立 PR，不阻塞 RFC-0032 关闭）
+
+| 项 | 关联 RFC | 描述 | 阻塞原因 |
+|----|----------|------|----------|
+| Step 9（DomainMeta 改造） | RFC-0018 | EntityDef/EntityField → ObjectTypeDef/AttributeDef | 仓库尚无 DomainMeta 代码；RFC-0018 整体为 DRAFT，未实施 |
+| Step 10（FieldValidator 修订） | RFC-0018 | enum 引用校验路径变化 | 同上，FieldValidator 尚未实现 |
+| Step 11（GroovyCodeGen 修订） | RFC-0019 | 枚举提取路径变化 | 同上，GroovyCodeGen 尚未实现 |
+| Step 14（端到端集成测试） | RFC-0020 | CRUD + SimpleTS 编译 + Groovy codegen 完整链路 | 依赖 RFC-0018/0019/0020 全部实施；可作为验收 RFC |
+
+**结论**：当 RFC-0018 / RFC-0019 / RFC-0020 进入实施阶段时，相关 Step 会作为各 RFC 的子任务一并落地。
+RFC-0032 本身的范围（Type 系统 + 元数据 CRUD）已全部完成，状态推进 IMPLEMENTING 后即可关闭。
 
 ### 10.4 实施原则
 
