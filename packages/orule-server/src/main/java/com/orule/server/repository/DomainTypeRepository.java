@@ -8,6 +8,6 @@ import java.util.Optional;
 
 @Repository
 public interface DomainTypeRepository extends JpaRepository<DomainType, String> {
-    Optional<DomainType> findByCode(String code);
-    boolean existsByCode(String code);
+    Optional<DomainType> findByProgramCode(String programCode);
+    boolean existsByProgramCode(String programCode);
 }

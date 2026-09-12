@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record CreateFunctionLibRequest(
-    @NotBlank String code,
+    @NotBlank String programCode,
     @NotBlank String name,
     @NotNull FunctionSignature signature,
     String description,

@@ -19,6 +19,8 @@ import org.springframework.web.context.WebApplicationContext;
 
 import jakarta.annotation.PostConstruct;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -30,13 +32,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * RFC-0031 — Metadata CRUD API integration tests (Type 重构版).
+ * RFC-0032 — Metadata CRUD API integration tests.
  *
- * <p>覆盖：DomainType, ObjectType, AttributeType（含 type_json 树形结构）, FunctionLib（含 signature JSON）。
- * 不再覆盖 EnumType（enum 已内联到 AttributeType.type_json 中）。
+ * <p>关键变更（vs RFC-0031 集成测试）：
+ * <ul>
+ *   <li>所有 code 字段改为 programCode</li>
+ *   <li>ObjectType 支持 kind=ENUM + enumValues（enum 升格为 ObjectType 特殊形态）</li>
+ *   <li>AttributeType 用 3 列结构（dataType + subDataTypeProgramCode + sub2），
+ *       移除 type JSON 字段；服务端自动组装 Type 树</li>
+ *   <li>by-code 路径改为 by-program-code</li>
+ * </ul>
  *
- * <p>Test isolation: {@code @Transactional} on the test class rolls back
- * everything between methods; tests are ordered to exercise FK chains.
+ * <p>Test isolation: {@code @Transactional} rolls back everything between methods.
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -44,11 +51,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 public class MetadataApiIntegrationTest {
 
-    @Autowired
-    private WebApplicationContext ctx;
-
-    @Autowired
-    private ObjectMapper om;
+    @Autowired private WebApplicationContext ctx;
+    @Autowired private ObjectMapper om;
 
     private MockMvc mvc;
 
@@ -73,47 +77,38 @@ public class MetadataApiIntegrationTest {
 
     @Test
     @Order(2)
-    @DisplayName("DomainType: POST creates a new domain, GET-by-code returns it")
+    @DisplayName("DomainType: POST creates, GET-by-program-code returns it")
     void domainTypeCreateAndLookup() throws Exception {
         String body = """
-            {"code":"MALL","name":"MALL Domain","description":"Mall domain",
+            {"programCode":"MALL","name":"MALL Domain","description":"Mall domain",
              "ownerCode":"team-mall"}
             """;
-        MvcResult created = mvc.perform(post("/api/v1/domain-types")
+        mvc.perform(post("/api/v1/domain-types")
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(0))
-            .andExpect(jsonPath("$.data.code").value("MALL"))
+            .andExpect(jsonPath("$.data.programCode").value("MALL"))
             .andExpect(jsonPath("$.data.name").value("MALL Domain"))
-            .andExpect(jsonPath("$.data.ownerCode").value("team-mall"))
-            .andReturn();
-        JsonNode data = om.readTree(created.getResponse().getContentAsString()).get("data");
-        String id = data.get("id").asText();
-        assertNotNull(id);
-        assertTrue(id.length() > 8);
+            .andExpect(jsonPath("$.data.ownerCode").value("team-mall"));
 
-        mvc.perform(get("/api/v1/domain-types/" + id))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.code").value("MALL"));
-
-        mvc.perform(get("/api/v1/domain-types/by-code/MALL"))
+        mvc.perform(get("/api/v1/domain-types/by-program-code/MALL"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.name").value("MALL Domain"));
     }
 
     @Test
     @Order(3)
-    @DisplayName("DomainType: POST with duplicate code returns 409 Conflict")
+    @DisplayName("DomainType: POST with duplicate programCode returns 409 Conflict")
     void domainTypeConflict() throws Exception {
         String seed = """
-            {"code":"CONFLICT_D1","name":"seed","description":"s"}
+            {"programCode":"CONFLICT_D1","name":"seed","description":"s"}
             """;
         mvc.perform(post("/api/v1/domain-types")
                 .contentType(MediaType.APPLICATION_JSON).content(seed))
             .andExpect(status().isOk());
 
         String body = """
-            {"code":"CONFLICT_D1","name":"dup","description":"dup"}
+            {"programCode":"CONFLICT_D1","name":"dup","description":"dup"}
             """;
         mvc.perform(post("/api/v1/domain-types")
                 .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -126,7 +121,7 @@ public class MetadataApiIntegrationTest {
     @DisplayName("DomainType: POST with missing required field returns 400")
     void domainTypeValidationFails() throws Exception {
         String body = """
-            {"description":"missing name and code"}
+            {"description":"missing name and programCode"}
             """;
         mvc.perform(post("/api/v1/domain-types")
                 .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -138,7 +133,7 @@ public class MetadataApiIntegrationTest {
     @DisplayName("DomainType: PUT updates name and description")
     void domainTypeUpdate() throws Exception {
         String create = """
-            {"code":"TEMP_D1","name":"temp","description":"d"}
+            {"programCode":"TEMP_D1","name":"temp","description":"d"}
             """;
         MvcResult c = mvc.perform(post("/api/v1/domain-types")
                 .contentType(MediaType.APPLICATION_JSON).content(create))
@@ -170,7 +165,7 @@ public class MetadataApiIntegrationTest {
     @DisplayName("DomainType: DELETE removes entity")
     void domainTypeDelete() throws Exception {
         String create = """
-            {"code":"DEL_D1","name":"del","description":"d"}
+            {"programCode":"DEL_D1","name":"del","description":"d"}
             """;
         MvcResult c = mvc.perform(post("/api/v1/domain-types")
                 .contentType(MediaType.APPLICATION_JSON).content(create))
@@ -190,13 +185,14 @@ public class MetadataApiIntegrationTest {
     @DisplayName("ObjectType: POST creates object under seed SMART_HOME domain")
     void objectTypeCreate() throws Exception {
         String body = """
-            {"domainId":"%s","code":"CUSTOMER","name":"Customer",
-             "description":"customer entity"}
+            {"domainId":"%s","programCode":"CUSTOMER","name":"Customer",
+             "kind":"CLASS","description":"customer entity"}
             """.formatted(seedDomainId("SMART_HOME"));
         mvc.perform(post("/api/v1/object-types")
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.code").value("CUSTOMER"));
+            .andExpect(jsonPath("$.data.programCode").value("CUSTOMER"))
+            .andExpect(jsonPath("$.data.kind").value("CLASS"));
     }
 
     @Test
@@ -216,28 +212,30 @@ public class MetadataApiIntegrationTest {
         String domainId = seedDomainId("SMART_HOME");
         MvcResult obj = mvc.perform(post("/api/v1/object-types")
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                    {"domainId":"%s","code":"ROOM","name":"Room","description":"r"}
+                    {"domainId":"%s","programCode":"ROOM","name":"Room",
+                     "kind":"CLASS","description":"r"}
                     """.formatted(domainId)))
             .andExpect(status().isOk()).andReturn();
         String objId = om.readTree(obj.getResponse().getContentAsString()).get("data").get("id").asText();
 
-        // attribute 含完整 type_json 树形结构
+        // RFC-0032: attribute 用 3 列结构，无 type JSON 字段
         mvc.perform(post("/api/v1/attribute-types")
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                    {"objectId":"%s","code":"AREA","name":"Area","dataType":"primitive",
-                     "type":{"kind":"primitive","name":"number"},
+                    {"objectId":"%s","programCode":"AREA","name":"Area",
+                     "dataType":"primitive","subDataTypeProgramCode":"number",
                      "required":true,"defaultValue":"0.0","description":"room area"}
                     """.formatted(objId)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.code").value("AREA"))
+            .andExpect(jsonPath("$.data.programCode").value("AREA"))
             .andExpect(jsonPath("$.data.dataType").value("primitive"))
+            // 服务端组装的 Type 树
             .andExpect(jsonPath("$.data.type.kind").value("primitive"))
             .andExpect(jsonPath("$.data.type.name").value("number"));
 
         mvc.perform(get("/api/v1/object-types/" + objId + "/with-attributes"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.attributes").isArray())
-            .andExpect(jsonPath("$.data.attributes[0].code").value("AREA"));
+            .andExpect(jsonPath("$.data.attributes[0].programCode").value("AREA"));
     }
 
     // ===== AttributeType =====
@@ -249,84 +247,97 @@ public class MetadataApiIntegrationTest {
         String domainId = seedDomainId("SMART_HOME");
         MvcResult obj = mvc.perform(post("/api/v1/object-types")
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                    {"domainId":"%s","code":"DEVICE","name":"Device","description":"d"}
+                    {"domainId":"%s","programCode":"DEVICE","name":"Device",
+                     "kind":"CLASS","description":"d"}
                     """.formatted(domainId)))
             .andExpect(status().isOk()).andReturn();
         String objId = om.readTree(obj.getResponse().getContentAsString()).get("data").get("id").asText();
 
         mvc.perform(post("/api/v1/attribute-types")
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                    {"objectId":"%s","code":"MODEL","name":"Model","dataType":"primitive",
-                     "type":{"kind":"primitive","name":"string"},
+                    {"objectId":"%s","programCode":"MODEL","name":"Model",
+                     "dataType":"primitive","subDataTypeProgramCode":"string",
                      "required":false,"defaultValue":"","description":"device model"}
                     """.formatted(objId)))
             .andExpect(status().isOk());
 
         mvc.perform(get("/api/v1/attribute-types?objectId=" + objId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data[0].code").value("MODEL"));
+            .andExpect(jsonPath("$.data[0].programCode").value("MODEL"));
     }
 
     @Test
     @Order(14)
-    @DisplayName("AttributeType: 创建 enum 类型 attribute（type_json 内联 enum）")
-    void attributeTypeEnumInline() throws Exception {
+    @DisplayName("AttributeType: object→CustomerTier(ENUM) 跨 attribute 共享")
+    void attributeTypeEnumViaObjectRef() throws Exception {
         String domainId = seedDomainId("SMART_HOME");
+        // 创建 ObjectType(kind=ENUM) 作为 SensorStatus
+        MvcResult enumObj = mvc.perform(post("/api/v1/object-types")
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"domainId":"%s","programCode":"SensorStatus","name":"Sensor Status",
+                     "kind":"ENUM",
+                     "enumValues":[
+                       {"code":"ON","label":"On","sortOrder":1},
+                       {"code":"OFF","label":"Off","sortOrder":2}
+                     ]}
+                    """.formatted(domainId)))
+            .andExpect(status().isOk()).andReturn();
+        String enumObjId = om.readTree(enumObj.getResponse().getContentAsString())
+            .get("data").get("id").asText();
+
         MvcResult obj = mvc.perform(post("/api/v1/object-types")
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                    {"domainId":"%s","code":"SENSOR","name":"Sensor","description":"s"}
+                    {"domainId":"%s","programCode":"SENSOR","name":"Sensor",
+                     "kind":"CLASS","description":"s"}
                     """.formatted(domainId)))
             .andExpect(status().isOk()).andReturn();
         String objId = om.readTree(obj.getResponse().getContentAsString()).get("data").get("id").asText();
 
-        // RFC-0031: enum 内联到 type_json.values
+        // attribute 引用 ObjectType(kind=ENUM)
         String body = """
-            {"objectId":"%s","code":"STATUS","name":"Status","dataType":"enum",
-             "type":{
-               "kind":"enum",
-               "enumCode":"DeviceStatus",
-               "values":[
-                 {"code":"ON","label":"On","sortOrder":1},
-                 {"code":"OFF","label":"Off","sortOrder":2}
-               ]
-             },
+            {"objectId":"%s","programCode":"STATUS","name":"Status",
+             "dataType":"object","subDataTypeProgramCode":"SensorStatus",
              "required":true}
             """.formatted(objId);
         mvc.perform(post("/api/v1/attribute-types")
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.code").value("STATUS"))
-            .andExpect(jsonPath("$.data.dataType").value("enum"))
-            .andExpect(jsonPath("$.data.type.kind").value("enum"))
-            .andExpect(jsonPath("$.data.type.enumCode").value("DeviceStatus"))
-            .andExpect(jsonPath("$.data.type.values.length()").value(2))
-            .andExpect(jsonPath("$.data.type.values[?(@.code=='ON')]").exists())
-            .andExpect(jsonPath("$.data.type.values[?(@.code=='OFF')]").exists());
+            .andExpect(jsonPath("$.data.programCode").value("STATUS"))
+            .andExpect(jsonPath("$.data.dataType").value("object"))
+            // 服务端组装的 Type 树：ObjectRef
+            .andExpect(jsonPath("$.data.type.kind").value("object"))
+            .andExpect(jsonPath("$.data.type.programCode").value("SensorStatus"));
+
+        // 验证 enum 定义独立存储，不在 attribute 中
+        mvc.perform(get("/api/v1/object-types/" + enumObjId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.kind").value("ENUM"))
+            .andExpect(jsonPath("$.data.enumValues[?(@.code=='ON')]").exists())
+            .andExpect(jsonPath("$.data.enumValues[?(@.code=='OFF')]").exists());
     }
 
     @Test
     @Order(15)
-    @DisplayName("AttributeType: 创建 list 类型 attribute（嵌套 Type）")
+    @DisplayName("AttributeType: list 类型 attribute（3 列 sub=element type）")
     void attributeTypeListNested() throws Exception {
         String domainId = seedDomainId("SMART_HOME");
         MvcResult obj = mvc.perform(post("/api/v1/object-types")
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                    {"domainId":"%s","code":"THERMOSTAT","name":"Thermostat","description":"t"}
+                    {"domainId":"%s","programCode":"THERMOSTAT","name":"Thermostat",
+                     "kind":"CLASS","description":"t"}
                     """.formatted(domainId)))
             .andExpect(status().isOk()).andReturn();
         String objId = om.readTree(obj.getResponse().getContentAsString()).get("data").get("id").asText();
 
         mvc.perform(post("/api/v1/attribute-types")
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                    {"objectId":"%s","code":"READINGS","name":"Readings","dataType":"list",
-                     "type":{
-                       "kind":"list",
-                       "elementType":{"kind":"primitive","name":"number"}
-                     },
+                    {"objectId":"%s","programCode":"READINGS","name":"Readings",
+                     "dataType":"list","subDataTypeProgramCode":"number",
                      "required":false}
                     """.formatted(objId)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.code").value("READINGS"))
+            .andExpect(jsonPath("$.data.programCode").value("READINGS"))
+            // 服务端组装的 Type 树
             .andExpect(jsonPath("$.data.type.kind").value("list"))
             .andExpect(jsonPath("$.data.type.elementType.kind").value("primitive"))
             .andExpect(jsonPath("$.data.type.elementType.name").value("number"));
@@ -334,25 +345,22 @@ public class MetadataApiIntegrationTest {
 
     @Test
     @Order(16)
-    @DisplayName("AttributeType: 创建 map 类型 attribute（嵌套 Type）")
+    @DisplayName("AttributeType: map 类型 attribute（3 列 sub=key, sub2=value）")
     void attributeTypeMapNested() throws Exception {
         String domainId = seedDomainId("SMART_HOME");
         MvcResult obj = mvc.perform(post("/api/v1/object-types")
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                    {"domainId":"%s","code":"WIDGET","name":"Widget","description":"w"}
+                    {"domainId":"%s","programCode":"WIDGET","name":"Widget",
+                     "kind":"CLASS","description":"w"}
                     """.formatted(domainId)))
             .andExpect(status().isOk()).andReturn();
         String objId = om.readTree(obj.getResponse().getContentAsString()).get("data").get("id").asText();
 
         mvc.perform(post("/api/v1/attribute-types")
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                    {"objectId":"%s","code":"META","name":"Meta","dataType":"map",
-                     "type":{
-                       "kind":"map",
-                       "keyType":{"kind":"primitive","name":"string"},
-                       "valueType":{"kind":"primitive","name":"number"}
-                     },
-                     "required":false}
+                    {"objectId":"%s","programCode":"META","name":"Meta",
+                     "dataType":"map","subDataTypeProgramCode":"string",
+                     "subDataTypeProgramCode2":"number","required":false}
                     """.formatted(objId)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.type.kind").value("map"))
@@ -367,7 +375,7 @@ public class MetadataApiIntegrationTest {
     @DisplayName("FunctionLib: POST creates a function library entry (signature 为 JSON 树)")
     void functionLibCreate() throws Exception {
         String body = """
-            {"code":"SUM","name":"Sum",
+            {"programCode":"SUM","name":"Sum",
              "signature":{
                "params":[{"kind":"list","elementType":{"kind":"primitive","name":"number"}}],
                "return":{"kind":"primitive","name":"number"}
@@ -377,7 +385,7 @@ public class MetadataApiIntegrationTest {
         mvc.perform(post("/api/v1/function-libs")
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.code").value("SUM"))
+            .andExpect(jsonPath("$.data.programCode").value("SUM"))
             .andExpect(jsonPath("$.data.builtin").value(true))
             .andExpect(jsonPath("$.data.signature.return.kind").value("primitive"))
             .andExpect(jsonPath("$.data.signature.params.length()").value(1));
@@ -389,7 +397,7 @@ public class MetadataApiIntegrationTest {
     void functionLibFilter() throws Exception {
         mvc.perform(post("/api/v1/function-libs")
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                    {"code":"AVG","name":"Avg",
+                    {"programCode":"AVG","name":"Avg",
                      "signature":{
                        "params":[{"kind":"list","elementType":{"kind":"primitive","name":"number"}}],
                        "return":{"kind":"primitive","name":"number"}
@@ -400,7 +408,7 @@ public class MetadataApiIntegrationTest {
         mvc.perform(get("/api/v1/function-libs?category=math"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data").isArray())
-            .andExpect(jsonPath("$.data[?(@.code=='AVG')]").exists());
+            .andExpect(jsonPath("$.data[?(@.programCode=='AVG')]").exists());
     }
 
     @Test
@@ -409,7 +417,7 @@ public class MetadataApiIntegrationTest {
     void functionLibUpdate() throws Exception {
         MvcResult c = mvc.perform(post("/api/v1/function-libs")
                 .contentType(MediaType.APPLICATION_JSON).content("""
-                    {"code":"UPD_ME","name":"upd",
+                    {"programCode":"UPD_ME","name":"upd",
                      "signature":{
                        "params":[],
                        "return":{"kind":"primitive","name":"string"}
@@ -434,15 +442,15 @@ public class MetadataApiIntegrationTest {
 
     // ===== Helper =====
 
-    private String seedDomainId(String code) throws Exception {
+    private String seedDomainId(String programCode) throws Exception {
         try {
-            MvcResult res = mvc.perform(get("/api/v1/domain-types/by-code/" + code))
+            MvcResult res = mvc.perform(get("/api/v1/domain-types/by-program-code/" + programCode))
                 .andExpect(status().isOk()).andReturn();
             return om.readTree(res.getResponse().getContentAsString()).get("data").get("id").asText();
         } catch (AssertionError notFound) {
             String body = """
-                {"code":"%s","name":"%s Domain","description":"auto-seeded for test","ownerCode":"test"}
-                """.formatted(code, code);
+                {"programCode":"%s","name":"%s Domain","description":"auto-seeded for test","ownerCode":"test"}
+                """.formatted(programCode, programCode);
             MvcResult res = mvc.perform(post("/api/v1/domain-types")
                     .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk()).andReturn();

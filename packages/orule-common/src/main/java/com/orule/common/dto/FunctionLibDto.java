@@ -3,13 +3,13 @@ package com.orule.common.dto;
 import com.orule.common.model.type.FunctionSignature;
 
 /**
- * FunctionLib DTO（RFC-0031 §3.4）。
+ * FunctionLib DTO（RFC-0032 §3.4 重命名）。
  *
- * <p>{@code signature} 是函数签名（参数 + 返回类型的 Type 树）。
+ * <p>字段 {@code code} → {@code programCode}。signature 保持 JSON（沿用 RFC-0031，TD-002）。
  */
 public record FunctionLibDto(
     String id,
-    String code,
+    String programCode,
     String name,
     FunctionSignature signature,
     String description,

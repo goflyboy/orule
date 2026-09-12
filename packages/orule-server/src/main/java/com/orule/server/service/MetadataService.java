@@ -6,6 +6,8 @@ import com.orule.common.entity.DomainType;
 import com.orule.common.entity.ObjectType;
 import com.orule.common.exception.ConflictException;
 import com.orule.common.exception.NotFoundException;
+import com.orule.common.model.type.Type;
+import com.orule.common.model.type.TypeFactory;
 import com.orule.server.repository.AttributeTypeRepository;
 import com.orule.server.repository.DomainTypeRepository;
 import com.orule.server.repository.ObjectTypeRepository;
@@ -13,13 +15,20 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * 元数据域服务（RFC-0031 重构版）。
+ * 元数据域服务（RFC-0032 重构版）。
  *
- * <p>不再管理独立 enum 表；enum 定义内联到 AttributeType.type 中。
+ * <p>变更要点：
+ * <ul>
+ *   <li>enum 不再独立管理：合入 ObjectType(kind=ENUM)，跨 attribute 共享</li>
+ *   <li>AttributeType 用 3 列结构（data_type + sub_data_type_program_code + _2）</li>
+ *   <li>组装 Type 时调用 {@link TypeFactory#buildType}</li>
+ * </ul>
  */
 @Service
 @RequiredArgsConstructor
@@ -41,19 +50,19 @@ public class MetadataService {
             .orElseThrow(() -> new NotFoundException("DomainType", id)));
     }
 
-    public DomainTypeDto findDomainTypeByCode(String code) {
-        return toDomainDto(domainRepo.findByCode(code)
-            .orElseThrow(() -> new NotFoundException("DomainType", "code=" + code)));
+    public DomainTypeDto findDomainTypeByProgramCode(String programCode) {
+        return toDomainDto(domainRepo.findByProgramCode(programCode)
+            .orElseThrow(() -> new NotFoundException("DomainType", "programCode=" + programCode)));
     }
 
     @Transactional
     public DomainTypeDto createDomainType(CreateDomainTypeRequest req) {
-        if (domainRepo.existsByCode(req.code())) {
-            throw new ConflictException("DomainType code already exists: " + req.code());
+        if (domainRepo.existsByProgramCode(req.programCode())) {
+            throw new ConflictException("DomainType programCode already exists: " + req.programCode());
         }
         DomainType e = DomainType.builder()
             .id(UUID.randomUUID().toString())
-            .code(req.code()).name(req.name())
+            .programCode(req.programCode()).name(req.name())
             .description(req.description()).ownerCode(req.ownerCode())
             .build();
         return toDomainDto(domainRepo.save(e));
@@ -94,23 +103,31 @@ public class MetadataService {
     public ObjectTypeDto findObjectTypeWithAttributes(String id) {
         ObjectType e = objectRepo.findById(id)
             .orElseThrow(() -> new NotFoundException("ObjectType", id));
-        // Force-initialize lazy collection inside the transaction.
-        e.getAttributes().size();
+        e.getAttributes().size(); // force init lazy
         List<AttributeTypeDto> attrs = attrRepo.findByObjectId(id).stream()
             .map(this::toAttrDto).toList();
         return new ObjectTypeDto(e.getId(),
             e.getDomain() != null ? e.getDomain().getId() : null,
-            e.getCode(), e.getName(), e.getDescription(),
-            attrs, e.getCreatedAt(), e.getUpdatedAt());
+            e.getProgramCode(), e.getName(), e.getKind().name(), attrs,
+            toEnumValueDtos(e.getEnumValues()),
+            e.getDescription(), e.getCreatedAt(), e.getUpdatedAt());
     }
 
     @Transactional
     public ObjectTypeDto createObjectType(CreateObjectTypeRequest req) {
         DomainType domain = domainRepo.findById(req.domainId())
             .orElseThrow(() -> new NotFoundException("DomainType", req.domainId()));
+        ObjectType.Kind kind = parseKind(req.kind());
+        if (kind == ObjectType.Kind.ENUM && (req.enumValues() == null || req.enumValues().isEmpty())) {
+            throw new IllegalArgumentException("kind=ENUM 时 enumValues 必填");
+        }
         ObjectType e = ObjectType.builder()
             .id(UUID.randomUUID().toString())
-            .domain(domain).code(req.code()).name(req.name())
+            .domain(domain)
+            .programCode(req.programCode())
+            .name(req.name())
+            .kind(kind)
+            .enumValues(toEntityEnumValues(req.enumValues()))
             .description(req.description()).build();
         return toObjectDto(objectRepo.save(e));
     }
@@ -120,6 +137,7 @@ public class MetadataService {
         ObjectType e = objectRepo.findById(id)
             .orElseThrow(() -> new NotFoundException("ObjectType", id));
         e.setName(req.name());
+        if (req.kind() != null) e.setKind(parseKind(req.kind()));
         e.setDescription(req.description());
         return toObjectDto(objectRepo.save(e));
     }
@@ -142,8 +160,12 @@ public class MetadataService {
             .orElseThrow(() -> new NotFoundException("ObjectType", req.objectId()));
         AttributeType e = AttributeType.builder()
             .id(UUID.randomUUID().toString())
-            .object(obj).code(req.code()).name(req.name())
-            .dataType(req.dataType()).type(req.type())
+            .object(obj)
+            .programCode(req.programCode())
+            .name(req.name())
+            .dataType(req.dataType())
+            .subDataTypeProgramCode(req.subDataTypeProgramCode())
+            .subDataTypeProgramCode2(req.subDataTypeProgramCode2())
             .isRequired(Boolean.TRUE.equals(req.required()))
             .defaultValue(req.defaultValue()).description(req.description()).build();
         return toAttrDto(attrRepo.save(e));
@@ -152,33 +174,62 @@ public class MetadataService {
     // === DTO conversions ===
 
     private DomainTypeDto toDomainDto(DomainType e) {
-        return new DomainTypeDto(e.getId(), e.getCode(), e.getName(),
+        return new DomainTypeDto(e.getId(), e.getProgramCode(), e.getName(),
             e.getDescription(), e.getOwnerCode(), e.getCreatedAt(), e.getUpdatedAt());
     }
 
     private ObjectTypeDto toObjectDto(ObjectType e) {
         return new ObjectTypeDto(e.getId(),
             e.getDomain() != null ? e.getDomain().getId() : null,
-            e.getCode(), e.getName(), e.getDescription(), null,
-            e.getCreatedAt(), e.getUpdatedAt());
+            e.getProgramCode(), e.getName(), e.getKind().name(), null,
+            toEnumValueDtos(e.getEnumValues()),
+            e.getDescription(), e.getCreatedAt(), e.getUpdatedAt());
     }
 
-    private ObjectTypeDto toObjectDtoWithAttrs(ObjectType e) {
-        List<AttributeTypeDto> attrs = e.getAttributes() != null
-            ? e.getAttributes().stream().map(this::toAttrDto).toList()
-            : List.of();
-        return new ObjectTypeDto(e.getId(),
-            e.getDomain() != null ? e.getDomain().getId() : null,
-            e.getCode(), e.getName(), e.getDescription(), attrs,
-            e.getCreatedAt(), e.getUpdatedAt());
+    private List<ObjectTypeDto.EnumValueDto> toEnumValueDtos(List<ObjectType.EnumValue> values) {
+        if (values == null) return null;
+        return values.stream()
+            .map(v -> new ObjectTypeDto.EnumValueDto(v.code(), v.label(), v.sortOrder()))
+            .toList();
+    }
+
+    private List<ObjectType.EnumValue> toEntityEnumValues(List<ObjectTypeDto.EnumValueDto> dtos) {
+        if (dtos == null) return null;
+        return dtos.stream()
+            .map(d -> new ObjectType.EnumValue(d.code(), d.label(), d.sortOrder()))
+            .toList();
     }
 
     private AttributeTypeDto toAttrDto(AttributeType a) {
+        Type type = buildTypeFromAttribute(a);
         return new AttributeTypeDto(a.getId(),
             a.getObject() != null ? a.getObject().getId() : null,
-            a.getCode(), a.getName(), a.getDataType(),
-            a.getType(),
+            a.getProgramCode(), a.getName(), a.getDataType(),
+            a.getSubDataTypeProgramCode(), a.getSubDataTypeProgramCode2(),
             Boolean.TRUE.equals(a.getIsRequired()),
-            a.getDefaultValue(), a.getDescription());
+            a.getDefaultValue(), a.getDescription(), type);
+    }
+
+    /**
+     * 组装 Type：根据 attribute 的 3 列 + 同 domain 下所有 ObjectType。
+     */
+    private Type buildTypeFromAttribute(AttributeType a) {
+        if (a.getObject() == null || a.getObject().getDomain() == null) {
+            return null;
+        }
+        Map<String, ObjectType> objectsByCode = new HashMap<>();
+        String domainId = a.getObject().getDomain().getId();
+        objectRepo.findByDomainId(domainId)
+            .forEach(o -> objectsByCode.put(o.getProgramCode(), o));
+        return TypeFactory.buildType(a, objectsByCode);
+    }
+
+    private ObjectType.Kind parseKind(String s) {
+        if (s == null) return ObjectType.Kind.CLASS;
+        try {
+            return ObjectType.Kind.valueOf(s.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Unknown kind: " + s + " (CLASS|ENUM)");
+        }
     }
 }

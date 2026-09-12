@@ -42,7 +42,7 @@ public class FunctionLibService {
     public FunctionLibDto create(CreateFunctionLibRequest req) {
         FunctionLib e = FunctionLib.builder()
             .id(UUID.randomUUID().toString())
-            .code(req.code()).name(req.name())
+            .programCode(req.programCode()).name(req.name())
             .signature(req.signature())
             .description(req.description()).category(req.category())
             .isBuiltin(req.builtin()).build();
@@ -68,7 +68,7 @@ public class FunctionLibService {
     }
 
     private FunctionLibDto toDto(FunctionLib e) {
-        return new FunctionLibDto(e.getId(), e.getCode(), e.getName(),
+        return new FunctionLibDto(e.getId(), e.getProgramCode(), e.getName(),
             e.getSignature(), e.getDescription(), e.getCategory(),
             Boolean.TRUE.equals(e.getIsBuiltin()));
     }

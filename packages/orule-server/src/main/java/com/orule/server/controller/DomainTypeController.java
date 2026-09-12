@@ -26,9 +26,9 @@ public class DomainTypeController {
         return Result.success(service.findDomainType(id));
     }
 
-    @GetMapping("/by-code/{code}")
-    public Result<DomainTypeDto> getByCode(@PathVariable String code) {
-        return Result.success(service.findDomainTypeByCode(code));
+    @GetMapping("/by-program-code/{programCode}")
+    public Result<DomainTypeDto> getByProgramCode(@PathVariable String programCode) {
+        return Result.success(service.findDomainTypeByProgramCode(programCode));
     }
 
     @PostMapping

@@ -50,10 +50,10 @@ class RuleDomainApiIntegrationTest {
 
     // ===== Helpers =====
 
-    private String createDomain(String code) throws Exception {
+    private String createDomain(String programCode) throws Exception {
         String body = """
-            {"code":"%s","name":"%s Domain","description":"d","ownerCode":"test"}
-            """.formatted(code, code);
+            {"programCode":"%s","name":"%s Domain","description":"d","ownerCode":"test"}
+            """.formatted(programCode, programCode);
         MvcResult res = mvc.perform(post("/api/v1/domain-types")
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isOk()).andReturn();
