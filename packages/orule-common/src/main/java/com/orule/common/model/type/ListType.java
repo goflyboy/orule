@@ -10,7 +10,6 @@ package com.orule.common.model.type;
  * { "kind": "list", "elementType": { "kind": "primitive", "name": "string" } }
  * }</pre>
  */
-@Type.PolymorphicConfig
 public record ListType(Type elementType) implements Type {
 
     public ListType {

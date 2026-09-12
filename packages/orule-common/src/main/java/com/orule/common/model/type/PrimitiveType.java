@@ -12,7 +12,6 @@ import java.util.Set;
  * { "kind": "primitive", "name": "string" }
  * }</pre>
  */
-@Type.PolymorphicConfig
 public record PrimitiveType(String name) implements Type {
 
     private static final Set<String> VALID_NAMES = Set.of("string", "number", "boolean", "date");

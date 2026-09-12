@@ -14,7 +14,6 @@ package com.orule.common.model.type;
  * }
  * }</pre>
  */
-@Type.PolymorphicConfig
 public record MapType(Type keyType, Type valueType) implements Type {
 
     public MapType {

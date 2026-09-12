@@ -14,7 +14,6 @@ package com.orule.common.model.type;
  * （详见 RFC-0031 §3.5.2）。ObjectType 内部仍有完整 fields 结构，供运行时
  * 类型检查和算法使用。
  */
-@Type.PolymorphicConfig
 public record ObjectType(String objectCode) implements Type {
 
     public ObjectType {

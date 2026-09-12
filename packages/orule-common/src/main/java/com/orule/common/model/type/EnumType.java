@@ -20,7 +20,6 @@ import java.util.Optional;
  * }
  * }</pre>
  */
-@Type.PolymorphicConfig
 public record EnumType(
         String enumCode,
         List<EnumValue> values
