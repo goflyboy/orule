@@ -74,6 +74,7 @@
 ## S10 Type 系统增强（MVP 后）
 
 - [RFC-0031 Type 系统重构 — JSON 树扁平化 + 5 个 Variant](RFC-0031-Type系统重构.md) — DRAFT
+- [RFC-0032 ObjectType 枚举化 + Type 系统简化（5 Variant → 4 Variant）](RFC-0032-ObjectType枚举化与Type系统简化.md) — DRAFT
 
 ## 状态说明
 
@@ -88,6 +89,4 @@
 | SUPERSEDED | 已被新 RFC 取代 |
 
 TODO：
-RFC-0032：SimpleTS 支持 list/map/object 嵌套访问
-RFC-0033：enum 全局唯一字典（避免重复内联）
 RFC-0034：运行时类型检查与算法 API

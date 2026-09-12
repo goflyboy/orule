@@ -1,9 +1,18 @@
 # RFC-0031: Type 系统重构 — JSON 树扁平化 + 5 个 Variant
 
-> **状态**：DRAFT · **优先级**：P0 · **预计工作量**：3d · **阶段**：S1 增强
+> **状态**：SUPERSEDED · **优先级**：P0 · **预计工作量**：3d · **阶段**：S1 增强
 > **作者**：架构组 · **日期**：2026-09-12
-> **相关 ADR**：ADR-011-Type 系统重构为 JSON 树
+> **相关 ADR**：ADR-011-Type 系统重构为 JSON 树（已被 ADR-012 取代）
+> **后续 RFC**：[RFC-0032-ObjectType枚举化与Type系统简化](RFC-0032-ObjectType枚举化与Type系统简化.md)
 > **影响范围**：RFC-0014（数据库迁移）、RFC-0015（元数据 API）、RFC-0018（SimpleTS 解析器）、RFC-0019（SimpleTS→Groovy 代码生成器）
+
+---
+
+> **🚨 2026-09-12 修订**：本 RFC 已部分被 [RFC-0032](RFC-0032-ObjectType枚举化与Type系统简化.md) 取代。
+> RFC-0032 把 `EnumType` 合并到 `ObjectType`（kind=ENUM），Type Variant 由 5 个减为 4 个，
+> attribute_type 摆脱 JSON 列改为 3 列关系化，code 统一重命名为 programCode。
+> 后续实施以 **RFC-0032** 为准；本 RFC §3.5 SimpleTS 调整仍有效（enum 引用语法保持）。
+> 实施差异：本文档 §3.1 Type 模型保留 5 个 variant 的"中间过程"，最终落地形态见 RFC-0032 §3.1。
 
 ---
 
