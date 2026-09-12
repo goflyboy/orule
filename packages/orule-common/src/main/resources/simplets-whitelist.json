@@ -1,0 +1,122 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-09-10T20:00:00Z",
+  "statementKinds": [
+    "IfStmt",
+    "ForStmt",
+    "DeclareStmt",
+    "AssignStmt",
+    "ExprStmt",
+    "Block"
+  ],
+  "expressionKinds": [
+    "BinaryExpr",
+    "UnaryExpr",
+    "Literal",
+    "MemberAccess",
+    "CallExpr",
+    "EnumRef",
+    "Identifier"
+  ],
+  "binaryOps": [
+    "+",
+    "-",
+    "*",
+    "/",
+    "%",
+    "==",
+    "!=",
+    "<",
+    "<=",
+    ">",
+    ">=",
+    "&&",
+    "||"
+  ],
+  "unaryOps": [
+    "-",
+    "!"
+  ],
+  "globalFunctions": [
+    "now",
+    "today",
+    "len",
+    "min",
+    "max",
+    "contains",
+    "startsWith",
+    "endsWith",
+    "isEmpty",
+    "size"
+  ],
+  "methodSignatures": [
+    {
+      "methodName": "now",
+      "returnType": "java.time.LocalDateTime",
+      "paramTypes": []
+    },
+    {
+      "methodName": "today",
+      "returnType": "java.time.LocalDateTime",
+      "paramTypes": []
+    },
+    {
+      "methodName": "len",
+      "returnType": "int",
+      "paramTypes": [
+        "java.lang.Object"
+      ]
+    },
+    {
+      "methodName": "min",
+      "returnType": "java.lang.Object",
+      "paramTypes": [
+        "java.lang.Object",
+        "java.lang.Object"
+      ]
+    },
+    {
+      "methodName": "max",
+      "returnType": "java.lang.Object",
+      "paramTypes": [
+        "java.lang.Object",
+        "java.lang.Object"
+      ]
+    },
+    {
+      "methodName": "contains",
+      "returnType": "boolean",
+      "paramTypes": [
+        "java.lang.CharSequence"
+      ]
+    },
+    {
+      "methodName": "startsWith",
+      "returnType": "boolean",
+      "paramTypes": [
+        "java.lang.CharSequence"
+      ]
+    },
+    {
+      "methodName": "endsWith",
+      "returnType": "boolean",
+      "paramTypes": [
+        "java.lang.CharSequence"
+      ]
+    },
+    {
+      "methodName": "isEmpty",
+      "returnType": "boolean",
+      "paramTypes": [
+        "java.lang.Object"
+      ]
+    },
+    {
+      "methodName": "size",
+      "returnType": "int",
+      "paramTypes": [
+        "java.lang.Object"
+      ]
+    }
+  ]
+}
