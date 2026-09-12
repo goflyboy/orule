@@ -1,27 +1,28 @@
 package com.orule.common.entity;
 
-import com.orule.common.model.type.Type;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 
 /**
- * AttributeType 实体（RFC-0031 §3.3）。
+ * AttributeType 实体（RFC-0032 §3.3）。
  *
- * <p>存储字段说明：
+ * <p>字段说明：
  * <ul>
- *   <li>{@code dataType}：kind 标签，取值 primitive / enum / object / list / map</li>
- *   <li>{@code type}：完整 Type 结构（Jackson 多态反序列化为 sealed interface）</li>
+ *   <li>{@code dataType}：kind 标签，取值 primitive / object / list / map</li>
+ *   <li>{@code subDataTypeProgramCode}：目标类型 code（primitive.name 或 object/list/map 的目标 programCode）</li>
+ *   <li>{@code subDataTypeProgramCode2}：仅 map 使用（value 类型的 programCode 或 primitive name）</li>
  * </ul>
+ *
+ * <p>Type 工厂（{@code TypeFactory.buildType}）根据这 3 列构造完整的 {@code Type} 树。
  */
 @Entity
 @Table(name = "attribute_type", uniqueConstraints = {
-    @UniqueConstraint(name = "uk_attr_object_code", columnNames = {"object_id", "code"})
+    @UniqueConstraint(name = "uk_attr_object_program_code",
+                       columnNames = {"object_id", "program_code"})
 })
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class AttributeType {
@@ -32,20 +33,23 @@ public class AttributeType {
     @JoinColumn(name = "object_id", nullable = false)
     private ObjectType object;
 
-    @Column(nullable = false, length = 64)
-    private String code;
+    @Column(name = "program_code", nullable = false, length = 64)
+    private String programCode;
 
     @Column(nullable = false, length = 128)
     private String name;
 
-    /** Type 判别标签：primitive | enum | object | list | map */
+    /** Type 判别标签：primitive | object | list | map */
     @Column(name = "data_type", nullable = false, length = 32)
     private String dataType;
 
-    /** 完整 Type 结构（JSON 树；Jackson 多态序列化） */
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "type_json", nullable = false, columnDefinition = "JSON")
-    private Type type;
+    /** primitive.name 或 object/list/map 的目标 programCode */
+    @Column(name = "sub_data_type_program_code", length = 64)
+    private String subDataTypeProgramCode;
+
+    /** 仅 map 使用（value 类型的 programCode） */
+    @Column(name = "sub_data_type_program_code2", length = 64)
+    private String subDataTypeProgramCode2;
 
     @Column(name = "is_required", nullable = false)
     @Builder.Default

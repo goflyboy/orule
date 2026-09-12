@@ -7,15 +7,22 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 
+/**
+ * DomainType 实体（RFC-0032 §3.3 重命名）。
+ *
+ * <p>字段名 code → programCode，列名同步调整。
+ */
 @Entity
-@Table(name = "domain_type")
+@Table(name = "domain_type", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_domain_program_code", columnNames = "program_code")
+})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class DomainType {
     @Id
     private String id;
 
-    @Column(nullable = false, unique = true, length = 64)
-    private String code;
+    @Column(name = "program_code", nullable = false, unique = true, length = 64)
+    private String programCode;
 
     @Column(nullable = false, length = 128)
     private String name;
