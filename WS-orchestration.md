@@ -11,7 +11,7 @@
 | **B** · GroovySourceIntake 落库服务 | `feature/b-controller` | `orule-feature-b-controller/` | 📋 TASKS.md 已写 | 待实现 |
 | **C** · white list 跨端同步 | `feature/c-whitelist` | `orule-feature-c-whitelist/` | 📋 TASKS.md 已写 | 待实现 |
 | **D** · 清理 SimpleTSParser + GraalJS | `feature/d-cleanup` | `orule-feature-d-cleanup/` | 📋 TASKS.md 已写 | 待实现 |
-| **A** · Skill #2 simplets-to-groovy | 待开 | 待 orule-llm-studio 路径给出 | — | 阻塞 |
+| **A** · Skill #2 simplets-to-groovy | `feature/a-skill` | `orule-orule-llm-studio-temp/` | ✅ **Skill #2 已落地 9a98809** | Skill #2 ✅ |
 
 ---
 
