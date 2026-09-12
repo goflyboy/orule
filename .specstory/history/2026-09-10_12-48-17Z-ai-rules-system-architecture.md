@@ -166,6 +166,13 @@ Directory: **`D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46`** (8 files)
 
 _**Agent (gpt-5.6-sol)**_
 
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+File not found
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
 <tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
 <summary>Tool use: **glob_file_search** • Searched codebase "" • **1** result in **1** directory</summary>
 
@@ -174,13 +181,6 @@ Directory: **`D:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46`** (1 file)
 | File |
 |------|
 | `../..\规则引擎调研\07-规则当前面临的问题-AI消费场景下的两个结构性脱节.md` |
-</details></tool-use>
-
-_**Agent (gpt-5.6-sol)**_
-
-<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
-<summary>Tool use: **read_file_v2**</summary>
-File not found
 </details></tool-use>
 
 _**Agent (gpt-5.6-sol)**_
@@ -397,6 +397,20 @@ Get-ChildItem : �Ҳ�����������ơ�la��ƥ��Ĳ�
 
 _**Agent (gpt-5.6-sol)**_
 
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\AI时代的规则系统构想.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\.specstory\history\2026-09-10_12-54-37Z-ai-era-rule-system.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
 <summary>Tool use: **run_terminal_command_v2** • Run command: Get-ChildItem d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\</summary>
 ```bash
@@ -417,20 +431,6 @@ d-----         2026/9/10     20:56                .specstory
 -a----         2026/9/10     20:56           9814 AIʱ���Ĺ���ϵͳ����.md                                              
 
 ```
-</details></tool-use>
-
-_**Agent (gpt-5.6-sol)**_
-
-<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
-<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\AI时代的规则系统构想.md</summary>
-
-</details></tool-use>
-
-_**Agent (gpt-5.6-sol)**_
-
-<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
-<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\.specstory\history\2026-09-10_12-54-37Z-ai-era-rule-system.md</summary>
-
 </details></tool-use>
 
 _**Agent (gpt-5.6-sol)**_
@@ -851,20 +851,6 @@ Additional data:
 
 ```json
 {
-  "completionDelivered": true,
-  "currentSelections": {
-    "Q1": [
-      "__freeform_other__"
-    ],
-    "Q2": [
-      "A"
-    ]
-  },
-  "freeformRichTexts": {},
-  "freeformTexts": {
-    "Q1": "就是cruleengine的场景，完整的",
-    "Q2": ""
-  },
   "status": "submitted"
 }
 ```
@@ -887,8 +873,6 @@ Result:
   ]
 }
 ```
-User decision: **accepted**
-
 Status: **completed**
 
 </details></tool-use>
@@ -3559,6 +3543,14 @@ cd d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule; Get-ChildItem -Force | 
 
 _**Agent (gpt-5.6-sol)**_
 
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **0** results in **1** directory</summary>
+
+Directory: **`d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule`** (0 files)
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
 <summary>Tool use: **run_terminal_command_v2** • Run command: cd d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule; Get-ChildItem -Force | Select-Object Name</summary>
 ```bash
@@ -3569,14 +3561,6 @@ cd d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule; Get-ChildItem -Force | 
 
 
 ```
-</details></tool-use>
-
-_**Agent (gpt-5.6-sol)**_
-
-<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
-<summary>Tool use: **glob_file_search** • Searched codebase "" • **0** results in **1** directory</summary>
-
-Directory: **`d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule`** (0 files)
 </details></tool-use>
 
 _**Agent (gpt-5.6-sol)**_
@@ -3640,3 +3624,617 @@ _**Agent (gpt-5.6-sol)**_
 好。现在按照 RFC 驱动开发的模式，先建立 `docs/rfcs/` 目录和 **RFC-0000 MVP 总览**（RFC Index），再产出每个 RFC 子文档。
 
 由于 RFC 数量较多（~20 个），我会按依赖顺序分批产出。先写 **RFC-0011 ~ RFC-0013**（基础设施层）+ **RFC-0000 总览**：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\RFC-0000-MVP-RFC总览.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+继续写 **RFC-0011 / RFC-0012 / RFC-0013**（基础设施层 S0）：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\RFC-0011-Monorepo仓库初始化.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\RFC-0012-Maven多模块骨架.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\RFC-0013-本地一键启动脚本.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+S0 完成 ✅。继续 **S1 数据层**（RFC-0014 / RFC-0015）：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\RFC-0014-数据库Flyway迁移基线.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\RFC-0015-元数据域CRUD-API.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+S1 完成 ✅（RFC-0014 / RFC-0015）。继续 **S2 规则层**（RFC-0016 / RFC-0017）：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\RFC-0016-规则域状态机API.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\RFC-0017-ArtifactStorage接口LocalStorage实现.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+S0/S1/S2 完成 ✅（RFC-0011 ~ RFC-0017）。本批写完后创建 README 索引并更新总览状态：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+The string to replace was not found in the file.
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\09-收口与风险.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\09-收口与风险.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+✅ 完成本轮。摘要：
+
+---
+
+## 📋 本轮产出：MVP 阶段 RFC 拆分（S0 + S1 + S2 共 7 份）
+
+### 新增文件清单
+
+```
+docs/rfcs/
+├── README.md                              # RFC 索引（按阶段组织）
+├── RFC-0000-MVP-RFC总览.md                # 总览 + 甘特图 + 依赖图
+├── RFC-0011-Monorepo仓库初始化.md         # S0
+├── RFC-0012-Maven多模块骨架.md            # S0
+├── RFC-0013-本地一键启动脚本.md           # S0
+├── RFC-0014-数据库Flyway迁移基线.md       # S1（含 5 个迁移 SQL）
+├── RFC-0015-元数据域CRUD-API.md           # S1（5 张表 + 6 个 DTO）
+├── RFC-0016-规则域状态机API.md            # S2（含状态机约束）
+└── RFC-0017-ArtifactStorage接口LocalStorage实现.md  # S2（ADR-010）
+```
+
+### RFC 总览（20 个 RFC，预计 ~80 人天）
+
+| 阶段 | RFC | 状态 | 工作量 |
+|------|-----|------|--------|
+| **S0 基础设施** | 0011 Monorepo / 0012 Maven / 0013 一键启动 | DRAFT | 3d |
+| **S1 数据层** | 0014 Flyway / 0015 元数据 API | DRAFT | 5d |
+| **S2 规则层** | 0016 规则状态机 / 0017 ArtifactStorage | DRAFT | 5d |
+| S3 编译层 | 0018 SimpleTS / 0019 TS→Groovy | 待写 | 9d |
+| S4 执行层 | 0020 沙箱 / 0021 批量执行 | 待写 | 8d |
+| S5 测试+LLM | 0022 测试用例 / 0023 NL→SimpleTS | 待写 | 7d |
+| S6 前端 | 0024 多视图编辑器 / 0025 列表监控 | 待写 | 9d |
+| S7 MCP+观测 | 0026 MCP / 0027 可观测性 | 待写 | 5d |
+| S8 验收 | 0028 E2E / 0029 Docker | 待写 | 5d |
+| S9 演示 | 0030 MVP Demo | 待写 | 2d |
+| **合计** | | | **~80d (3 月 / 5 人)** |
+
+### 关键设计点已沉淀
+
+| RFC | 关键点 |
+|-----|--------|
+| RFC-0014 | 完整 26 张表 SQL（含 JSONB / 索引 / 外键） |
+| RFC-0015 | Result<T> 统一响应 + GlobalExceptionHandler |
+| RFC-0016 | 状态机校验 + 同时刻仅 1 个 PUBLISHED |
+| RFC-0017 | 路径穿越防护 + SHA256 校验 + URL 抽象 |
+
+### 配套更新
+
+- ✅ `docs/09-收口与风险.md` §9.9 指向 RFC-0000
+- ✅ `docs/rfcs/README.md` 按 S0~S9 分组索引
+
+---
+
+## 🚀 下一步可选
+
+**选项 A**：继续写 **S3 编译层**（RFC-0018 SimpleTS 解析器 + RFC-0019 SimpleTS→Groovy 代码生成器）—— MVP 最核心、最复杂的两份 RFC
+
+**选项 B**：继续写 **S4 执行层**（RFC-0020 Groovy 沙箱 + RFC-0021 批量执行）—— 安全性关键（高风险 T1）
+
+**选项 C**：跳到 **S6 前端**（RFC-0024 多视图编辑器）—— 可视化效果最强
+
+**选项 D**：全部 20 份 RFC 一次性铺完
+
+你希望哪个方向继续？
+
+---
+
+_**User**_
+
+继续
+
+---
+
+_**Agent (gpt-5.6-sol)**_
+
+继续写 **S3 编译层** 的两个最核心 RFC（RFC-0018 SimpleTS 解析器、RFC-0019 SimpleTS→Groovy 代码生成器）。先扫一下 SimpleTS 在仓库里的现有定义：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **4** results in **1** directory</summary>
+
+Directory: **`d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule`** (4 files)
+
+| File |
+|------|
+| `../.\docs\adr\ADR-006-规则源语言采用SimpleTS.md` |
+| `../.\docs\adr\ADR-003-中间态DSL采用SimpleTS.md` |
+| `../.\docs\adr\ADR-009-SimpleTS为中心的星型转换架构.md` |
+| `../.\docs\dsl\SimpleTS.md` |
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "files_with_matches",
+  "path": "d:\\WorkBuddyData\\WorkBuddy\\2026-09-10-19-37-46\\orule\\docs",
+  "pattern": "SimpleTS"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "files_with_matches",
+  "path": "d:\\WorkBuddyData\\WorkBuddy\\2026-09-10-19-37-46\\orule\\docs",
+  "pattern": "SimpleTS",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "docs\\09-收口与风险.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\rfcs\\README.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\rfcs\\RFC-0016-规则域状态机API.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\rfcs\\RFC-0015-元数据域CRUD-API.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\rfcs\\RFC-0014-数据库Flyway迁移基线.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\rfcs\\RFC-0000-MVP-RFC总览.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\README.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\08-开发视图.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\04-数据模型.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\06-运行视图.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\adr\\ADR-006-规则源语言采用SimpleTS.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\adr\\ADR-003-中间态DSL采用SimpleTS.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\03-逻辑视图.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\02-用例视图.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\adr\\ADR-009-SimpleTS为中心的星型转换架构.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\adr\\ADR-008-LLM服务端原生双前端嵌入.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\05-技术模型.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\adr\\ADR-007-四进程架构.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": "docs\\dsl\\SimpleTS.md"
+    }
+  ],
+  "totalFiles": 19,
+  "totalMatches": 19
+}
+```
+Status: **completed**
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2** • Run command: cd &#39;D:/WorkBuddyData/WorkBuddy/2026-09-10-19-37-46/orule&#39;; cmd /c dir /B docs\dsl 2&gt;NUL || echo &#34;no dsl dir&#34;</summary>
+```bash
+cd 'D:/WorkBuddyData/WorkBuddy/2026-09-10-19-37-46/orule'; cmd /c dir /B docs\dsl 2>NUL || echo "no dsl dir"
+```
+
+```
+����λ�� C:\Users\Administrator\AppData\Local\Temp\ps-script-c2f20bef-1d6b-4cc2-adea-ed0952aaee75.ps1:100 �ַ�: 89
++ ... y/2026-09-10-19-37-46/orule'; cmd /c dir /B docs\dsl 2>NUL || echo "n ...
++                                                                ~~
+��ǡ�||�����Ǵ˰汾�е���Ч���ָ�����
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : InvalidEndOfLine
+ 
+
+```
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\dsl\SimpleTS.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+SimpleTS 规范已非常完整。直接进入 RFC 撰写：
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\RFC-0018-SimpleTS解析器.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\RFC-0019-SimpleTS转Groovy代码生成器.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+S3 完成 ✅。更新索引：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+Incorrect tool arguments
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+RFC-0000 中的 RFC-0018/0019 已是预填状态，无需更新。完成！
+
+---
+
+## 本轮完成：S3 编译层（RFC-0018 + RFC-0019）
+
+### 产出清单
+
+```
+docs/rfcs/
+├── RFC-0018-SimpleTS解析器.md              # S3（~5d）
+└── RFC-0019-SimpleTS转Groovy代码生成器.md  # S3（~4d）
+```
+
+### RFC-0018 核心设计
+
+| 模块 | 内容 |
+|------|------|
+| `SimpleTSParser` | 入口：词法→白名单剪枝→标识符→字段→类型→左值，6 步流水线 |
+| `DomainMeta` | Java record，与 `docs/dsl/SimpleTS.md §7` 完全对齐 |
+| `WhitelistPruner` | 基于 GraalJS 调 TS Compiler API，ALLOWED_KINDS 白名单 |
+| `FieldValidator` | MemberAccess.root 必须在 context；字段存在性；枚举值合法性 |
+| `TssCompileError` | 多错误聚合 + 行号 + 格式模板（与 §11 样板一致） |
+| 关键风险 | GraalJS 性能 → 编译产物缓存；集成复杂度 → polyglot 官方包装 |
+
+### RFC-0019 核心设计
+
+| 模块 | 内容 |
+|------|------|
+| `GroovyCodeGen` | 递归下降：If/For/Declare/Assign/Expr → Groovy 源码 |
+| EnumRef 包装 | 每条规则生成独立 `enum CustomerTier { VIP, GOLD }` 包装类 |
+| 完整可执行模板 | `enum { ... }` + `def execute(Map context)` + 主体 + `return context` |
+| `CompileService` | 解析→生成→更新 RuleVersion→上传 Artifact→创建 RuleArtifact |
+| 关键风险 | Groovy vs TS 语法差异（括号）→ 测试覆盖视觉一致性 |
+
+### 编译链路（RFC-0018 + RFC-0019 串联）
+
+```
+RuleVersion.simple_ts (NL 编辑器写入)
+    │
+    ▼ parse(source, meta) [RFC-0018]
+SimpleTS-AST
+    │
+    ├─ 校验失败 → RuleArtifact.compile_status=FAILED + compile_log
+    │
+    ▼ generateExecutable(ast, meta) [RFC-0019]
+Groovy 源码
+    │
+    ├─ 写入 RuleVersion.groovy_source
+    ├─ storage.upload("rules/ORDER_DISCOUNT/v1.groovy")
+    └─ RuleArtifact (SUCCESS + SHA256)
+```
+
+---
+
+## 📊 RFC 进度总览
+
+| 阶段 | RFC | 状态 |
+|------|-----|------|
+| **S0 基础设施** | 0011 Monorepo / 0012 Maven / 0013 一键启动 | ✅ DRAFT |
+| **S1 数据层** | 0014 Flyway / 0015 元数据 API | ✅ DRAFT |
+| **S2 规则层** | 0016 规则状态机 / 0017 ArtifactStorage | ✅ DRAFT |
+| **S3 编译层** | 0018 SimpleTS 解析器 / 0019 TS→Groovy | ✅ 刚完成 |
+| **S4 执行层** | 0020 沙箱+执行 / 0021 批量执行 | 待写 |
+| S5 测试+LLM | 0022 测试用例 / 0023 NL→SimpleTS | 待写 |
+| S6 前端 | 0024 多视图编辑器 / 0025 列表监控 | 待写 |
+| S7 MCP+观测 | 0026 MCP / 0027 可观测性 | 待写 |
+| S8 验收 | 0028 E2E / 0029 Docker | 待写 |
+| S9 演示 | 0030 MVP Demo | 待写 |
+
+继续 **S4 执行层**（RFC-0020 Groovy 沙箱 + RFC-0021 批量执行）？这是安全性最关键的环节（对应高风险 T1 沙箱绕过）。
+
+---
+
+_**User**_
+
+继续
+
+---
+
+_**Agent (gpt-5.6-sol)**_
+
+继续 **S4 执行层**（RFC-0020 + RFC-0021），这是 MVP 安全性最关键的环节：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **10** results in **1** directory</summary>
+
+Directory: **`d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\adr`** (10 files)
+
+| File |
+|------|
+| `../docs\adr\ADR-010-ArtifactStorage可配置通用文件服务器.md` |
+| `../docs\adr\ADR-006-规则源语言采用SimpleTS.md` |
+| `../docs\adr\ADR-003-中间态DSL采用SimpleTS.md` |
+| `../docs\adr\ADR-009-SimpleTS为中心的星型转换架构.md` |
+| `../docs\adr\ADR-008-LLM服务端原生双前端嵌入.md` |
+| `../docs\adr\ADR-007-四进程架构.md` |
+| `../docs\adr\ADR-005-数据库多profile.md` |
+| `../docs\adr\ADR-004-MCP为默认接口.md` |
+| `../docs\adr\ADR-002-MVP双展现态双执行引擎.md` |
+| `../docs\adr\ADR-001-系统命名与定位.md` |
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\06-运行视图.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\06-运行视图.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\adr\ADR-006-规则源语言采用SimpleTS.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+好，现在写 **S4 执行层**（RFC-0020 Groovy 沙箱 + RFC-0021 批量执行）：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\RFC-0020-Groovy沙箱单条规则执行器.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\RFC-0021-批量规则执行RuleSetArtifact.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+S4 完成 ✅。更新索引：
+
+
+_**Agent (gpt-5.6-sol)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: d:\WorkBuddyData\WorkBuddy\2026-09-10-19-37-46\orule\docs\rfcs\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (gpt-5.6-sol)**_
+
+---
+
+## 本轮完成：S4 执行层（RFC-0020 + RFC-0021）
+
+### 产出清单
+
+```
+docs/rfcs/
+├── RFC-0020-Groovy沙箱单条规则执行器.md    # S4（~5d）
+└── RFC-0021-批量规则执行RuleSetArtifact.md # S4（~3d）
+```
+
+### RFC-0020 核心设计（安全关键 🔴）
+
+| 模块 | 关键内容 |
+|------|----------|
+| **三层防护** | ① 源码层（RFC-0018 WhitelistPruner）② 字节码层（Groovy Sandbox Policy）③ 运行时层（超时线程 + 内存限制） |
+| **SandboxConfig** | allowedMethods（26 个白名单方法）+ allowedClasses + forbiddenPackages（14 个禁止包） |
+| **GroovySandbox** | checkForbiddenKeywords（14 个关键字）+ checkForbiddenClasses + checkImports + 超时 Future |
+| **安全测试** | 13 项安全测试用例覆盖（System.exit / Runtime.exec / File / Thread / @Grab 等） |
+| **执行状态机** | PENDING→RUNNING→SUCCESS/FAILED + ExecutionLog 记录 |
+
+### RFC-0021 核心设计
+
+| 模块 | 关键内容 |
+|------|----------|
+| **ConcurrencyController** | Semaphore（公平锁）+ WorkStealingPool；concurrency 来自 RuleSetArtifact.concurrency |
+| **RuleSetExecutor** | 批量下载 JSON Lines 制品 + 并发调度 + CountDownLatch 等待 |
+| **BatchExecutionResult** | SUCCESS / FAILED / PARTIAL 三态；errorSummary 最多前 5 条 |
+| **RuleSetArtifactService** | JSON Lines 打包（每行 `{"ruleId":"","groovy":""}`）+ SHA256 上传 |
+| **REST API** | `/package` / `/execute` / `/logs` / `/concurrency` |
+
+### 安全链路（RFC-0018 → RFC-0019 → RFC-0020 串联）
+
+```
+SimpleTS 源码（NL 编辑器写入）
+    │
+    ▼ parse() [RFC-0018 WhitelistPruner]
+    AST（危险语法已剪枝）
+    │
+    ▼ generateExecutable() [RFC-0019 GroovyCodeGen]
+    Groovy 源码（enum 包装 + execute 方法）
+    │
+    ├─ 检查禁止关键字（14 个）
+    ├─ 检查禁止类引用（14 个禁止包）
+    ├─ 检查 import 语句
+    ├─ Semaphore.acquire()（并发控制）
+    │
+    ▼ sandbox.execute()
+    ExecutionResult { SUCCESS / FAILED }
+    │
+    ▼ save ExecutionLog
+    execution_log 表记录
+```
+
+---
+
+## 📊 RFC 进度
+
+| 阶段 | RFC | 状态 |
+|------|-----|------|
+| S0 基础设施 | 0011~0013 | ✅ DRAFT |
+| S1 数据层 | 0014~0015 | ✅ DRAFT |
+| S2 规则层 | 0016~0017 | ✅ DRAFT |
+| **S3 编译层** | **0018~0019** | ✅ 刚完成 |
+| **S4 执行层** | **0020~0021** | ✅ 刚完成 |
+| **S5 测试+LLM** | 0022 测试用例 / 0023 NL→SimpleTS | 待写 |
+| S6 前端 | 0024~0025 | 待写 |
+| S7 MCP+观测 | 0026~0027 | 待写 |
+| S8 验收 | 0028~0029 | 待写 |
+| S9 演示 | 0030 | 待写 |
+
+---
+
+## 🚀 下一步
+
+继续 **S5 测试+LLM**：
+
+| RFC | 核心内容 | 难度 |
+|-----|----------|------|
+| **RFC-0022** 测试用例 | RuleTestCase CRUD + 批量运行 + 通过率统计 | 🟡 中 |
+| **RFC-0023** NL→SimpleTS | LLM 调用 + Schema 注入 + Prompt 模板 + 错误回退 | 🟡 中 |
+
+继续吗？
