@@ -218,22 +218,27 @@ if ((customer.tier == CustomerTier.VIP) && (order.totalAmount >= 200)) {
 
 SimpleTS 源码：`customer.tier == CustomerTier.VIP`
 
-枚举在 Groovy 中需要类定义。MVP 策略：
+**RFC-0031 修订**：枚举定义已内联到 `AttributeField.type.kind === 'enum'` 的 `EnumType.values` 中。
+DomainMeta 顶层已无 `enums` 字段；提取枚举值需要遍历所有 entity 的所有 field。
+
+Groovy enum 语法仅支持 `code` 列表，无法携带 `label` / `sortOrder`。
+**MVP 策略**：仅输出 `code` 到 Groovy enum 定义；`label` / `sortOrder` 在 UI 渲染时通过 RFC-0015
+元数据 API 查询。
 
 **方案 A**（推荐）：自动生成 Enum 包装类（每个 Rule 一个内部 Enum 类）
 
 ```groovy
 class RuleGroovy {
     enum CustomerTier { VIP, GOLD, SILVER, BRONZE }
-    
+
     static Object execute(Map context) {
         def customer = context.customer
         def order = context.order
-        
+
         if ((customer.tier == CustomerTier.VIP) && (order.totalAmount >= 200)) {
             order.discount = 30
         }
-        
+
         return context
     }
 }
@@ -242,53 +247,103 @@ class RuleGroovy {
 > **优势**：枚举类型在 Groovy 中可被沙箱校验（未知枚举值编译错误）。
 > **劣势**：每条规则带自己的 Enum 定义，无法共享（可接受）。
 
+**EnumType.values → Groovy enum 转换**：
+
+```java
+/**
+ * 提取 Groovy enum 定义（仅取 code）。
+ * 多个 EnumType 重名时按 enumCode 去重，取首个（DomainMeta 应保证不重名）。
+ */
+private String generateEnumBlock(List<DomainMeta.EntityDef> entities) {
+    Set<String> seen = new HashSet<>();
+    StringBuilder sb = new StringBuilder();
+    for (DomainMeta.EntityDef entity : entities) {
+        for (DomainMeta.EntityField field : entity.fields()) {
+            if (field.type() instanceof EnumType et) {
+                if (seen.add(et.enumCode())) {
+                    sb.append("enum ").append(et.enumCode()).append(" { ");
+                    sb.append(et.values().stream()
+                        .map(EnumValue::code)
+                        .collect(Collectors.joining(", ")));
+                    sb.append(" }\n\n");
+                }
+            }
+        }
+    }
+    return sb.toString();
+}
+```
+
 ### 3.5 完整包装模板
+
+> **修订**：原 §3.5 中 `generateStatementWithIndent(stmt, indent)` 重新实现一套缩进
+> 与 `GroovyWriter` 重复。本版本统一用 `GroovyWriter` 的 indent 管理（enter/exit），
+> 不再硬编码 4 空格字符串。
 
 ```java
 public class GroovyCodeGen {
-    
+
     /**
      * 生成完整可执行的 Groovy 脚本（含 Enum 定义 + execute 方法 + 输入参数定义）。
+     *
+     * @param ast      SimpleTS-AST（RFC-0018 产物）
+     * @param meta     领域元数据（RFC-0031 同步）
+     * @param ruleCode 规则标识
+     * @param version  版本号
+     * @return Groovy 源码（视觉与 SimpleTS 一致）
      */
     public String generateExecutable(Program ast, DomainMeta meta, String ruleCode, int version) {
-        StringBuilder sb = new StringBuilder();
-        
+        GroovyWriter w = new GroovyWriter();
+
         // 1. 头注释
-        sb.append("// Rule: ").append(ruleCode).append("\n");
-        sb.append("// Version: ").append(version).append("\n\n");
-        
-        // 2. Enum 定义（从 meta 提取）
-        for (DomainMeta.EnumDef enumDef : meta.enums()) {
-            sb.append("enum ").append(enumDef.id()).append(" { ");
-            sb.append(String.join(", ", enumDef.values()));
-            sb.append(" }\n\n");
+        w.writeLine("// Auto-generated from SimpleTS by orule GroovyCodeGen");
+        w.writeLine("// Rule: " + ruleCode);
+        w.writeLine("// Version: " + version);
+        w.writeLine("// DO NOT EDIT - 修改 SimpleTS 源码后重新编译");
+        w.writeLine("");
+
+        // 2. Enum 定义（从 meta 提取，遍历所有 entity 的所有 field）
+        for (DomainMeta.EntityDef entity : meta.entities()) {
+            for (DomainMeta.EntityField field : entity.fields()) {
+                if (field.type() instanceof EnumType et) {
+                    w.writeLine("enum " + et.enumCode() + " { "
+                        + et.values().stream()
+                            .map(EnumValue::code)
+                            .collect(Collectors.joining(", "))
+                        + " }");
+                }
+            }
         }
-        
+        w.writeLine("");
+
         // 3. execute 方法
-        sb.append("def execute(Map context) {\n");
+        w.writeLine("def execute(Map context) {");
+        w.enterIndent();
+        // 把 context.* 解构到局部变量（def customer = context.customer）
         for (DomainMeta.ContextVar ctx : meta.context()) {
-            sb.append("    def ").append(ctx.name())
-              .append(" = context.").append(ctx.name()).append("\n");
+            w.writeLine("def " + ctx.name() + " = context." + ctx.name());
         }
-        sb.append("\n");
-        
-        // 4. 主体（缩进 4 空格）
+        w.writeLine("");
+
+        // 4. 主体（用 w.writeLine 走统一的 indent 管理）
         for (Node stmt : ast.body()) {
-            String bodyCode = generateStatementWithIndent(stmt, "    ");
-            sb.append(bodyCode).append("\n");
+            generateStatement(stmt, w);  // 这里 w 已经处于 +1 indent
+            w.writeLine("");
         }
-        
+
         // 5. 返回 context
-        sb.append("\n    return context\n");
-        sb.append("}\n");
-        
-        return sb.toString();
+        w.writeLine("return context");
+        w.exitIndent();
+        w.writeLine("}");
+
+        return w.toString();
     }
-    
-    private String generateStatementWithIndent(Node stmt, String indent) {
-        // 类似 generate，但每行加 indent
-        // ...
-    }
+
+    // generateStatement / generateIf / generateAssign / generateExpr /
+    // generateMemberAccess / generateCall / generateLiteral 在这里用 GroovyWriter：
+    // - 用 w.write("...") / w.writeLine("...") 输出片段；
+    // - Block / If / For 进入时调 w.enterIndent()，退出前调 w.exitIndent()；
+    // - 不再传 indent 字符串，避免双 indent 系统。
 }
 ```
 
@@ -308,27 +363,27 @@ public class CompileService {
     public CompileResult compile(String ruleVersionId) {
         RuleVersion version = versionRepo.findById(ruleVersionId)
             .orElseThrow(() -> new NotFoundException("RuleVersion", ruleVersionId));
-        
+
         try {
-            // 1. 拼装 DomainMeta（从 RuleSet → DomainType → ObjectType → AttributeType）
+            // 1. 拼装 DomainMeta（RFC-0031 同步：从 RFC-0015 元数据 API 取 DomainType + ObjectType + AttributeType + FunctionLib）
             DomainMeta meta = buildDomainMeta(version.getRule().getRuleSet().getDomainId());
-            
+
             // 2. 解析 SimpleTS → AST
             Program ast = parser.parse(version.getSimpleTs(), meta);
-            
+
             // 3. 生成 Groovy
             String groovySource = codeGen.generateExecutable(
                 ast, meta, version.getRule().getCode(), version.getVersion());
-            
+
             // 4. 更新 RuleVersion
             version.setGroovySource(groovySource);
             versionRepo.save(version);
-            
+
             // 5. 上传 Artifact
             String key = String.format("rules/%s/v%d.groovy",
                 version.getRule().getCode(), version.getVersion());
             UploadResult upload = storage.upload(key, groovySource.getBytes(UTF_8));
-            
+
             // 6. 创建 RuleArtifact 记录
             RuleArtifact artifact = RuleArtifact.builder()
                 .id(UUID.randomUUID().toString())
@@ -341,9 +396,9 @@ public class CompileService {
                 .compileStatus(CompileStatus.SUCCESS)
                 .build();
             artifactRepo.save(artifact);
-            
+
             return new CompileResult(true, groovySource, null);
-            
+
         } catch (TssCompileError e) {
             // 记录编译失败
             RuleArtifact failed = RuleArtifact.builder()
@@ -357,15 +412,27 @@ public class CompileService {
                 .compileLog(e.getMessage())
                 .build();
             artifactRepo.save(failed);
-            
+
             return new CompileResult(false, null, e.getMessage());
         }
     }
-    
+
+    /**
+     * 从 RFC-0015 元数据 API 拼装 DomainMeta。
+     *
+     * <p>RFC-0031 修订：
+     * <ul>
+     *   <li>遍历 {@code ObjectType.fields} → AttributeType，type 是 RFC-0031 的 5 Variant 之一；</li>
+     *   <li>枚举定义从 AttributeType.type.kind === 'enum' 的 {@code EnumType.values} 提取；</li>
+     *   <li>context 入口来自 DomainType.contextVariables（ObjectType）。</li>
+     * </ul>
+     */
     private DomainMeta buildDomainMeta(String domainId) {
-        // 通过 RFC-0015 的 Service 查询 DomainType + ObjectType + AttributeType + EnumType + FunctionLib
-        // 拼装成 DomainMeta
-        // ...
+        // 1. 取 DomainType
+        // 2. 取所有 ObjectType + AttributeType
+        // 3. 取 FunctionLib（其 signature 用 RFC-0031 FunctionSignature）
+        // 4. 拼装 DomainMeta
+        // ...（具体实现依赖 RFC-0015 的 service）
     }
 }
 ```
@@ -471,7 +538,7 @@ void stringLiteral_escape() {
 
 ## 8. 关联
 
-- 上游：RFC-0018（SimpleTS 解析器）、RFC-0017（ArtifactStorage）
+- 上游：RFC-0018（SimpleTS 解析器）、RFC-0017（ArtifactStorage）、**RFC-0031（Type 系统，5 Variant）**
 - 下游：RFC-0020（Groovy 沙箱执行）、RFC-0022（测试用例）、RFC-0023（NL→SimpleTS）
 - ADR：**ADR-009 SimpleTS 为中心的星型转换架构**
 - 规范：[docs/dsl/SimpleTS.md §10.2](../../dsl/SimpleTS.md)
