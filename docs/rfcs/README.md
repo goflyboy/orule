@@ -74,7 +74,7 @@
 ## S10 Type 系统增强（MVP 后）
 
 - [RFC-0031 Type 系统重构 — JSON 树扁平化 + 5 个 Variant](RFC-0031-Type系统重构.md) — DRAFT
-- [RFC-0032 ObjectType 枚举化 + Type 系统简化（5 Variant → 4 Variant）](RFC-0032-ObjectType枚举化与Type系统简化.md) — DRAFT
+- [RFC-0032 ObjectType 枚举化 + Type 系统简化（5 Variant → 4 Variant）](RFC-0032-ObjectType枚举化与Type系统简化.md) — APPROVED
 
 ## 状态说明
 

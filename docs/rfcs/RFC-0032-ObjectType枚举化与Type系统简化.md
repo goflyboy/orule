@@ -1,6 +1,6 @@
 # RFC-0032: ObjectType 枚举化 + Type 系统简化（5 Variant → 4 Variant）
 
-> **状态**：DRAFT · **优先级**：P0 · **预计工作量**：2d · **阶段**：S1 增强
+> **状态**：APPROVED · **优先级**：P0 · **预计工作量**：2d · **阶段**：S1 增强
 > **作者**：架构组 · **日期**：2026-09-12
 > **相关 ADR**：ADR-012 enum 视为 ObjectType 的特殊形态
 > **影响范围**：RFC-0031（Type 系统重构）、RFC-0014（数据库迁移）、RFC-0015（元数据 API）、RFC-0018（SimpleTS 解析器）、RFC-0019（SimpleTS→Groovy 代码生成器）
@@ -836,6 +836,8 @@ INSERT INTO function_lib (id, program_code, name, signature, description, catego
 | 2026-09-12 | 保留 SimpleTS 中 `CustomerTier.VIP` 引用语法 | 编译期类型校验；语义直观 |
 | 2026-09-12 | MVP 不支持 map value 为 object 的场景 | 复杂度控制；记 TD-003 |
 | 2026-09-12 | function_lib.signature 仍用 JSON 列 | 与 attribute_type 设计不一致；记 TD-002 |
+| 2026-09-12 | RFC-0032 状态推进 APPROVED（基于已落地的 entity + TypeFactory 实施） | Phase 1 实施完成，5 测试类 GREEN（commit `f8e6c62`） |
+| 2026-09-12 | Phase 1 实施已完成：Type 系统 4 Variant（删 EnumType / ObjectType→ObjectRef）；entity 加 Kind+enumValues；AttributeType 3 列；TypeFactory | 见 §10 实施状态 |
 
 ---
 
@@ -845,3 +847,49 @@ INSERT INTO function_lib (id, program_code, name, signature, description, catego
 - TD-002 解决：function_lib.signature 与 attribute_type 扁平化对齐
 - TD-003 解决：map value 为 object 的支持（需要嵌套 attribute 表达）
 - RFC-0034：运行时类型检查与算法 API
+
+---
+
+## 10. 实施状态（RFC 进度跟踪）
+
+### 10.1 Phase 1 已完成（2026-09-12, commit `f8e6c62`）
+
+| Step | 内容 | 状态 |
+|------|------|------|
+| 1 | Type 模型：删 `EnumType`；`model.type.ObjectType` → `ObjectRef` | ✅ |
+| 4 | entity：`ObjectType` 加 Kind+enumValues；`AttributeType` 拆 3 列；`DomainType`/`FunctionLib` 改 programCode | ✅ |
+| 7 | 新增 `TypeFactory`：根据 3 列组装 Type 树 | ✅ |
+| 13 | 单元测试：TypeFactory + entity 字段 + 集成场景 | ✅ |
+
+### 10.2 测试覆盖（29+ 用例，5 测试类）
+
+| 测试类 | 用例数 | 覆盖 |
+|--------|--------|------|
+| `TypeVariantsTest` | 8 | Type 系统 4 Variant 校验 |
+| `ObjectTypeEntityTest` | 7 | entity.ObjectType 字段（Kind / enumValues / attributes 默认值） |
+| `AttributeTypeEntityTest` | 6 | entity.AttributeType 3 列 + 反射校验 typeJson 字段已删 |
+| `TypeFactoryTest` | 10 | TypeFactory 各种组合（含错误边界：未知 dataType / map 缺 sub2 / map key 非 primitive） |
+| `Rfc0032ScenariosTest` | 2 | RFC-0032 关键场景（enum 跨 attribute 复用 / Order 含 list/map/object） |
+
+### 10.3 Phase 2 待实施
+
+| Step | 内容 | 工作量 |
+|------|------|--------|
+| 2 | V1__init_metadata.sql 重写（attribute_type 拆 3 列；object_type 加 kind/enum_values；code → program_code） | 0.4d |
+| 3 | V5__init_seed.sql 修改（CustomerTier 升格 ObjectType kind=ENUM） | 0.3d |
+| 5 | DTO 改造：`ObjectTypeDto` / `AttributeTypeDto` / `CreateObjectTypeRequest` / `UpdateAttributeTypeRequest`（DTO 当前未建，可与 step 6 合并） | 0.3d |
+| 6 | 删除 enum 相关 DTO/Service/Controller/Repository | 0.1d |
+| 8 | `MetadataService.java` CRUD 逻辑适配新 schema（Service 当前未建，需新建） | 0.3d |
+| 9 | `DomainMeta.java` 改造：EntityDef/EntityField → ObjectTypeDef/AttributeDef；直接持有 entity.* | 0.2d |
+| 10 | RFC-0018 `FieldValidator.java` enum 引用校验路径变化 | 0.1d |
+| 11 | RFC-0019 `GroovyCodeGen.java` 枚举提取路径变化 | 0.1d |
+| 12 | 集成测试 `MetadataApiIntegrationTest` | 0.3d |
+| 14 | 端到端集成测试（CRUD + SimpleTS 编译 + Groovy codegen） | 0.2d |
+| **总计** | | **2.3d** |
+
+### 10.4 实施原则
+
+- **TDD 严格执行**：每个切片先 RED（写失败测试）→ GREEN（最小代码）→ REFACTOR
+- **下游兼容**：每次提交后必须跑 `mvn -pl packages/orule-server,packages/orule-runtime -am compile` 验证下游无遗留引用
+- **测试先于 SQL**：DB migration 用 SQL 测试（H2 / Testcontainers）覆盖，关键索引/约束单测验证
+- **每 commit 独立可回滚**：Phase 2 内部按 Step 拆 commit
