@@ -20,7 +20,23 @@
   <properties>
     <caffeine.version>3.1.8</caffeine.version>
     <resilience4j.version>2.2.0</resilience4j.version>
+    <postgresql.version>42.7.4</postgresql.version>
+    <!-- Spring Cloud BOM 与 Spring Boot 3.3.4 对应的推荐版本（2023.0.x） -->
+    <spring-cloud.version>2023.0.3</spring-cloud.version>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- Spring Cloud BOM：仅用于本模块的 openfeign；不引入 spring-cloud-context 全套 -->
+      <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-dependencies</artifactId>
+        <version>${spring-cloud.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
@@ -46,10 +62,15 @@
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
 
-    <!-- 数据库（执行服务需要落库记录 execution_log） -->
+    <!-- 数据库（H2 全部 + PG 仅 prod profile 引用） -->
     <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>${postgresql.version}</version>
     </dependency>
     <dependency>
       <groupId>com.mysql</groupId>
@@ -87,10 +108,16 @@
       <version>${resilience4j.version}</version>
     </dependency>
 
-    <!-- Groovy（沙箱执行；版本由 orule-parent <groovy.version> 属性控制，依赖未在 dependencyManagement 时由 Groovy 自身 BOM 提供） -->
+    <!-- Groovy（沙箱执行；版本由 Groovy 自身 BOM 提供） -->
     <dependency>
       <groupId>org.apache.groovy</groupId>
       <artifactId>groovy</artifactId>
+    </dependency>
+
+    <!-- OpenFeign（调用 rule-management-service） -->
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-openfeign</artifactId>
     </dependency>
 
     <!-- Lombok -->
