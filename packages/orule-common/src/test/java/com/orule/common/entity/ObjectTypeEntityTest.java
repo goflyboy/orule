@@ -24,12 +24,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class ObjectTypeEntityTest {
 
     @Test
-    @DisplayName("ObjectType.Kind 枚举含 CLASS 与 ENUM")
+    @DisplayName("ObjectType.Kind 枚举含 CLASS、ENUM、VOID")
     void kind_enumValues() {
         ObjectType.Kind[] kinds = ObjectType.Kind.values();
-        assertEquals(2, kinds.length);
+        assertEquals(3, kinds.length);
         assertSame(ObjectType.Kind.CLASS, kinds[0]);
         assertSame(ObjectType.Kind.ENUM, kinds[1]);
+        assertSame(ObjectType.Kind.VOID, kinds[2]);
     }
 
     @Test

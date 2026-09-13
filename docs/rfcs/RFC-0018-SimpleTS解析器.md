@@ -399,84 +399,101 @@ public class TssCompileError extends RuntimeException {
 }
 ```
 
-### 3.9 TS AST 解析（GraalJS 桥接）
+### 3.9 编译执行位置：本地 LLM-Studio Skill（Node.js 版）
 
-```java
-package com.orule.dsl;
+> **RFC-0018-bis 修订（2026-09-12 晚）**：依据 [ADR-012-Aprime-本地Skill编译与MCPLangLib库.md](../../adr/ADR-012-Aprime-本地Skill编译与MCPLangLib库.md)，
+> SimpleTS 解析 + 校验 + 后续 Groovy codegen 全部迁出 orule-server，**由 orule-llm-studio 本地 Skill 完成**。
+> orule-server **不持有** SimpleTSParser / TsAstParser / GroovyCodeGen / GraalJS 任何依赖。
+>
+> 本节原 GraalJS 桥接方案作废；保留 §3.1~§3.8 的剪枝 / 校验 / 错误模板定义作为 **Skill 实现规范**（§10）。
 
-import org.graalvm.polyglot.Context;
-import org.graalvm.polyglot.HostAccess;
-import org.graalvm.polyglot.Source;
-import org.graalvm.polyglot.Value;
-import ts.SyntaxKind;
-import ts.Node;
+#### 3.9.1 总体架构
 
-import java.io.IOException;
+```
+┌────────────── orule-llm-studio (Electron + Node.js) ──────────────┐
+│                                                                     │
+│  Skill #1: nl-to-simplets           (RFC-0023, 已有)                │
+│      ↓ NL + DomainMeta → SimpleTS 源码                              │
+│  Skill #2: simplets-to-groovy       (本 RFC 定义规范)               │
+│      ↓ SimpleTS + DomainMeta → Groovy 源码                          │
+│  MCP Client                                                          │
+│      ↓ POST /mcp/tools/orule.rule.publishCompiledGroovy             │
+│      ↓   { groovySource, sha256, compileLog?, durationMs }          │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓ HTTPS / mTLS
+┌─────────────────── orule-server (JDK) ─────────────────────────────┐
+│  GroovySourceIntakeController (新增, RFC-0019 §3.6 接管)            │
+│      ├─ SHA256 校验                                                 │
+│      ├─ 落 RuleVersion.groovy_source + RuleArtifact                 │
+│      └─ 上传 ArtifactStorage                                        │
+│  【不做】 TS / SimpleTS / Groovy 任何 DSL 校验                       │
+└────────────────────────────────────────────────────────────────────┘
+                              ↓
+                       ArtifactStorage
+```
 
-/**
- * 通过 GraalJS 调用 TypeScript Compiler API。
- * 把 SimpleTS 源码解析为 TS AST（JSON 形态），再转 Java 对象。
- *
- * <p><b>安全</b>：GraalJS Context 必须以 <b>最小权限</b> 配置
- * （{@code HostAccess.NONE} + {@code allowCreateThread(false)} + 禁止 IO），
- * 否则 GraalJS 本身就是一个侧信道攻击面（沙箱被一个错误配置击穿）。
- */
-public class TsAstParser {
+#### 3.9.2 Skill #2 输入输出契约
 
-    private static final String TS_PARSER_JS = """
-        const ts = require('typescript');
-        function parse(source) {
-            const sf = ts.createSourceFile('rule.ts', source, ts.ScriptTarget.ES2020, true);
-            return tsNodeToJson(sf);
-        }
-        function tsNodeToJson(node) {
-            const result = {
-                kind: ts.SyntaxKind[node.kind],
-                line: sf.getLineAndCharacterOfPosition(node.getStart()).line + 1,
-                column: sf.getLineAndCharacterOfPosition(node.getStart()).character + 1,
-            };
-            // 递归遍历子节点（property / element 区分）
-            // ... (实现略)
-            return result;
-        }
-        parse;
-        """;
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `simpleTs` | string | 是 | SimpleTS 源码（≤100 KB） |
+| `domainMeta` | object | 是 | RFC-0015 元数据 API 形态（RuleType / ArgumentType / ObjectType / AttributeType / FuntionType） |
+| **输出** | | | |
+| `groovySource` | string | 是 | 编译产物（失败时为空串） |
+| `compileLog` | string \| null | 否 | 错误信息模板（成功时为 null） |
+| `sha256` | string | 是 | `sha256(groovySource)` |
+| `durationMs` | number | 是 | Skill 端编译耗时（审计用） |
 
-    private final Context jsContext;
-    private final Value parseFn;  // 缓存 parse 函数，避免每次重新加载
+#### 3.9.3 Skill #2 内部实现要求
 
-    public TsAstParser() {
-        this.jsContext = Context.newBuilder("js")
-                .allowHostAccess(HostAccess.NONE)        // 禁止 Java 反射访问
-                .allowHostClassLookup(null)               // 禁止 host class lookup
-                .allowCreateThread(false)                  // 禁止创建线程
-                .allowIO(false)                            // 禁止文件 / 网络 IO
-                .allowNativeAccess(false)                  // 禁止 native access
-                .build();
-        // 仅 require TypeScript，不暴露任何 Java 绑定
-        this.jsContext.eval("js", "const ts = require('typescript');");
-        this.parseFn = jsContext.eval(Source.newBuilder("js", TS_PARSER_JS, "ts-parser.js").buildLiteral());
-    }
+- **解析**：直接 `require('typescript')`（Apache-2.0，Microsoft 维护），`ts.createSourceFile('rule.ts', source, ts.ScriptTarget.ES2020, true)`
+- **剪枝**：§3.5 `WhitelistPruner` → `simplets-pruner.ts`
+- **校验**：§3.6 `FieldValidator` + §3.7 `LValueChecker` → `simplets-validator.ts`
+- **错误模板**：§3.8 → `errors.ts`
+- **白名单**：§3.10 `SimpleTSWhitelist` → `simplets-whitelist.ts`，**构建期单向同步**为 `orule-common/src/main/resources/simplets-whitelist.json`（与 Groovy 沙箱共享）
+- **沙箱**：Skill Runtime 配置 `allowChildProcess=false / allowFs=false / allowNet=false / maxMemoryMb=512 / timeoutMs=5000 / forbiddenModules=['fs','child_process',...]`
 
-    public Node parse(String source) {
-        Value result = parseFn.execute(source);
-        return convertFromJson(result);
-    }
+#### 3.9.4 orule-server 侧契约
 
-    public void close() {
-        jsContext.close();
-    }
+MCP 工具名：`orule.rule.publishCompiledGroovy`
 
-    // ... JSON → Java Node 转换
+```http
+POST /mcp/tools/orule.rule.publishCompiledGroovy
+Authorization: Bearer <mcp_token>
+Content-Type: application/json
+
+{
+  "ruleVersionId": "rv-001",
+  "groovySource": "def execute(Map context) { ... }",
+  "sha256": "abc123...",
+  "compileLog": null,
+  "durationMs": 42
+}
+
+→ 200 OK
+{
+  "ruleVersionId": "rv-001",
+  "artifactId": "ra-001",
+  "compileStatus": "SUCCESS",
+  "storedAt": "2026-09-12T20:30:00Z"
 }
 ```
 
-> **说明**：
-> 1. MVP 采用 GraalJS 桥接 TypeScript Compiler API（参考 `05-技术模型 §5.x` Groovy 沙箱方案），
->    避免重复造 TS 解析器的轮子。
-> 2. parseFn 在构造时一次性编译缓存，每次 {@code parse(source)} 只传入 source、复用 parseFn，
->    性能开销 ≈ 一次函数调用（详见 §6 性能风险）。
-> 3. 如未来切到 jts / ANTLR，本类是唯一改动点（适配器模式）。
+详细服务端实现见 [RFC-0019 §3.6](../../rfcs/RFC-0019-SimpleTS转Groovy代码生成器.md)（已改写）。
+
+---
+
+## 4. 影响面
+
+- **删除**（orule-server）：`com.orule.dsl`（SimpleTSParser / TsAstParser / WhitelistPruner / FieldValidator / TypeChecker / IdentifierResolver / LValueChecker）+ `com.orule.dsl.codegen.GroovyCodeGen` + `CompileService`
+- **删除**（依赖）：`org.graalvm.polyglot:polyglot` + `org.graalvm.polyglot:js`
+- **新增**（orule-llm-studio）：Skill #2 `simplets-to-groovy`（含 ts-parser / pruner / validator / codegen / whitelist / errors 6 个子模块）
+- **新增**（orule-server）：`GroovySourceIntakeController` + `GroovySourceIntakeService` + `GroovySourceIntakeRequest/Response`
+- **保留**：5 张数据库表（`rule_type` / `rule_argument` / `rule_return` / `rule_type_funtion` / `rule_type_exclude_funtion`）+ `RuleVersion.groovy_source` + `RuleArtifact`
+- **新增**（构建脚本）：`simplets-whitelist.ts → simplets-whitelist.json` 单向同步（CI 跑）
+- **不涉及**：orule-runtime（Groovy 沙箱 RFC-0020 与本修订无关）
+
+> §3.1~§3.8 仍作为 Skill 实现规范保留（§10），**不删除**；§3.10 SimpleTSWhitelist 改为跨端共享（构建期同步到 orule-runtime 沙箱）。
 
 ---
 
@@ -687,11 +704,14 @@ void undeclaredIdentifier_shouldFail() {
 
 | 风险 | 等级 | 缓解 |
 |------|------|------|
-| GraalJS + TypeScript 性能 | 🟡 中 | 编译产物缓存（规则版本不变则复用）+ parseFn 单次编译缓存 |
-| GraalJS 集成复杂度 | 🟡 中 | 用官方 polyglot 包装器；二期可考虑换 jts 或 ANTLR |
-| GraalJS 沙箱配置错误（allowAllAccess） | 🔴 高 | **强制使用 HostAccess.NONE + allowIO(false) + allowCreateThread(false)**（§3.9） |
-| TS 解析器未捕获边界场景 | 🟢 低 | 大量测试用例覆盖（参考 §5） |
-| 白名单跨 RFC 漂移 | 🟡 中 | §3.10 SimpleTSWhitelist 单一来源；CI 断言方法名集合 ⊆ 签名集合 |
+| ~~GraalJS + TypeScript 性能~~ | ~~🟡 中~~ | **A' 已消除**：或ule-server 不再持有 GraalJS；编译迁到本地 Skill |
+| ~~GraalJS 集成复杂度~~ | ~~🟡 中~~ | **A' 已消除**：直接 `require('typescript')`，无中间层 |
+| ~~GraalJS 沙箱配置错误（allowAllAccess）~~ | ~~🔴 高~~ | **A' 已消除**：Node.js 模块系统天然隔离 + Skill Runtime forbiddenModules 拦截 |
+| Skill 版本漂移（编辑器升级 vs orule-server 期望） | 🟡 中 | RuleArtifact 记录 sha256 + compileStatus；客户端拉新版本强制重编译 |
+| MCP 接口契约变更 | 🟢 低 | 入参 / 出参字段稳定原则（与 §3.6 ExecutionResponse 同款约束） |
+| TS 解析器未捕获边界场景 | 🟢 低 | Skill 端 vitest 单测覆盖（原 §5 全部 case 迁移到 Skill） |
+| 白名单跨端漂移（Skill TS 版 vs Groovy 沙箱 Java 版） | 🟡 中 | 构建期单向同步：`simplets-whitelist.ts` 导出 JSON → `orule-common/src/main/resources/simplets-whitelist.json` → orule-runtime 沙箱启动期读取；CI 断言两端字段一致 |
+| 恶意 Groovy 上传（服务端无 DSL 校验） | 🟡 中 | MCP 入口加 IP 白名单 / mTLS；执行时由 Groovy 沙箱（RFC-0020 SecureASTCustomizer）二次校验 |
 
 ---
 
@@ -722,7 +742,7 @@ void undeclaredIdentifier_shouldFail() {
 - 下游：RFC-0019（SimpleTS→Groovy 代码生成器）、RFC-0023（NL→SimpleTS）
 - 平级：**RFC-0033（元数据层 2：RuleSetType / RuleType 元数据管理）** — 本 RFC 实体定义权威来源在此
 - 平级：RFC-0020（Groovy 沙箱）— **共用 §3.10 SimpleTSWhitelist 白名单单一来源**
-- ADR：**ADR-003 中间态 DSL 采用 SimpleTS**、**ADR-006 规则源语言采用 SimpleTS**、**ADR-009 SimpleTS 为中心的星型转换架构**、**ADR-012 enum 视为 ObjectType 特殊形态**
+- ADR：**ADR-003 中间态 DSL 采用 SimpleTS**、**ADR-006 规则源语言采用 SimpleTS**、**ADR-009 SimpleTS 为中心的星型转换架构**、**ADR-012 enum 视为 ObjectType 特殊形态**、**[ADR-012-Aprime 本地 Skill 编译 + MCP 落库（A'，已采纳）](../../adr/ADR-012-Aprime-本地Skill编译与MCPLangLib库.md)**
 - 规范：[docs/dsl/SimpleTS.md](../../dsl/SimpleTS.md)
 
 ---
@@ -733,3 +753,4 @@ void undeclaredIdentifier_shouldFail() {
 |------|---------|
 | 2026-09-12 | RFC-0018-bis：废弃 DomainMeta；RuleSet 直接作为领域代表；SimpleTSParser 入口改为 `parse(source, RuleType)`；新增 RuleType/ArgumentType/ReturnType/RuleTypeFuntion/RuleTypeExcludeFuntion 实体；FieldValidator 锚点从 DomainMeta.context 下沉到 RuleType.arguments；ObjectType.Kind 新增 VOID（内置） |
 | 2026-09-12 | RFC-0018-bis-bis（RFC-0033 协作）：§3.3 实体定义迁移到 [RFC-0033](RFC-0033-元数据管理2-RuleSetType与RuleType.md)；本 RFC 仅声明 RuleType 4 个字段的编译期用途 |
+| 2026-09-12 | **RFC-0018-tris（A' 采纳）**：依据 [ADR-012-Aprime](../../adr/ADR-012-Aprime-本地Skill编译与MCPLangLib库.md)，§3.9 GraalJS 桥接方案作废；SimpleTS 解析/校验/Groovy codegen 全部迁出 orule-server，由 orule-llm-studio 本地 Skill #2 `simplets-to-groovy` 完成；orule-server 仅持有 GroovySourceIntakeController（接收 MCP 落库）；§3.1~§3.8 保留作为 Skill 实现规范 §10 |
