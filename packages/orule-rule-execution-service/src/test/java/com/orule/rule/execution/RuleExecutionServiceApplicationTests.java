@@ -4,16 +4,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
- * RFC-0012 阶段 3 验证：Rule Execution Service 上下文必须能成功加载。
+ * RFC-0012 闃舵 3 楠岃瘉锛歊ule Execution Service 涓婁笅鏂囧繀椤昏兘鎴愬姛鍔犺浇銆?
  *
- * <p>本模块由 {@code orule-runtime}（RFC-0040 v0.6 之前版本）改名而来，
- * 测试类名同步更新以匹配 {@link RuleExecutionServiceApplication}。
+ * <p>鏈ā鍧楃敱 {@code orule-runtime}锛圧FC-0040 v0.6 涔嬪墠鐗堟湰锛夋敼鍚嶈€屾潵锛?
+ * 娴嬭瘯绫诲悕鍚屾鏇存柊浠ュ尮閰?{@link RuleExecutionServiceApplication}銆?
  */
 @SpringBootTest
 class RuleExecutionServiceApplicationTests {
 
     @Test
     void contextLoads() {
-        // 触发整个 ApplicationContext 初始化
+        // 瑙﹀彂鏁翠釜 ApplicationContext 鍒濆鍖?
     }
 }
