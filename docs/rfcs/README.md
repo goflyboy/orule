@@ -29,8 +29,8 @@
 
 ## S1 数据层
 
-- [RFC-0014 数据库 Flyway 迁移基线（V1~V5）](RFC-0014-数据库Flyway迁移基线.md) — DRAFT
-- [RFC-0015 元数据域 CRUD API](RFC-0015-元数据域CRUD-API.md) — DRAFT
+- [RFC-0014 数据库 Flyway 迁移基线（V1~V5）](RFC-0014-数据库Flyway迁移基线.md) — **SUPERSEDED**（被 RFC-0033 取代）
+- [RFC-0015 元数据域 CRUD API](RFC-0015-元数据域CRUD-API.md) — **SUPERSEDED**（被 RFC-0033 取代）
 
 ## S2 规则层
 
@@ -73,8 +73,8 @@
 
 ## S10 Type 系统增强（MVP 后）
 
-- [RFC-0031 Type 系统重构 — JSON 树扁平化 + 5 个 Variant](RFC-0031-Type系统重构.md) — DRAFT
-- [RFC-0032 ObjectType 枚举化 + Type 系统简化（5 Variant → 4 Variant）](RFC-0032-ObjectType枚举化与Type系统简化.md) — IMPLEMENTING
+- [RFC-0031 Type 系统重构 — JSON 树扁平化 + 5 个 Variant](RFC-0031-Type系统重构.md) — **SUPERSEDED**（被 RFC-0032 取代）
+- [RFC-0032 ObjectType 枚举化 + Type 系统简化（5 Variant → 4 Variant）](RFC-0032-ObjectType枚举化与Type系统简化.md) — **IMPLEMENTING**
 - [RFC-0033 元数据管理（2）— RuleSetType 与 RuleType（JSON 拍平）](RFC-0033-元数据管理2-RuleSetType与RuleType.md) — DRAFT
 
 ## 状态说明
@@ -91,3 +91,9 @@
 
 TODO：
 RFC-0034：运行时类型检查与算法 API
+
+---
+
+## 修订说明
+
+- **2026-09-13**：RFC-0014/0015 标 SUPERSEDED（被 RFC-0033 取代）；RFC-0031 标 SUPERSEDED（被 RFC-0032 取代）；RFC-0032 标 IMPLEMENTING。RFC-0018/0019 状态保持 DRAFT，标注"实施路径已通过 ADR-012-Aprime 确定（详见 ADR 索引），代码合并在 main #c579b17 中（仅 MCP 端点 + 白名单 Loader 部分；解析器/Skill 化仍在外部 skill 仓实施）"。新增 [ADR 索引](../adr/README.md)。
