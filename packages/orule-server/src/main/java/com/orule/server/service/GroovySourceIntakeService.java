@@ -28,7 +28,7 @@ import java.util.UUID;
  * <p><b>不做</b>任何 TS / SimpleTS / Groovy 校验 — 仅做 SHA256 一致性校验 + 字段非空校验。
  * 编译期校验由 orule-llm-studio Skill #2 simplets-to-groovy 负责。
  *
- * <p>运行期校验由 orule-runtime Groovy 沙箱（RFC-0020 SecureASTCustomizer）兜底。
+ * <p>运行期校验由 orule-rule-execution-service Groovy 沙箱（RFC-0020 SecureASTCustomizer）兜底。
  *
  * <p><b>失败语义</b>：compileLog 非空 = 失败 → 保留旧 groovySource（不覆盖），不调用 storage.upload，
  * 但仍然记录 RuleArtifact（compileStatus=FAILED + compileLog 完整内容），便于审计。

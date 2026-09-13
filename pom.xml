@@ -15,7 +15,7 @@
   <modules>
     <module>packages/orule-common</module>
     <module>packages/orule-server</module>
-    <module>packages/orule-runtime</module>
+    <module>packages/orule-rule-execution-service</module>
     <module>tests/scripts</module>
   </modules>
 

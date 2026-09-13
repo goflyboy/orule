@@ -2,16 +2,16 @@
 # One-shot launcher for orule local development (Windows PowerShell)
 #
 # Usage:
-#   .\scripts\dev-start.ps1           # start server + runtime
-#   .\scripts\dev-start.ps1 server    # only server
-#   .\scripts\dev-start.ps1 runtime   # only runtime
-#   .\scripts\dev-start.ps1 check     # dependency check only
-#   .\scripts\dev-start.ps1 stop      # stop all backend services
-#   .\scripts\dev-start.ps1 db-console # open H2 console in default browser (auto-start server if needed)
+#   .\scripts\dev-start.ps1                       # start server + rule-execution-service
+#   .\scripts\dev-start.ps1 server                # only server
+#   .\scripts\dev-start.ps1 rule-execution-service # only rule-execution-service
+#   .\scripts\dev-start.ps1 check                 # dependency check only
+#   .\scripts\dev-start.ps1 stop                  # stop all backend services
+#   .\scripts\dev-start.ps1 db-console            # open H2 console in default browser (auto-start server if needed)
 
 [CmdletBinding()]
 param(
-    [ValidateSet('start', 'server', 'runtime', 'check', 'stop', 'db-console', 'help')]
+    [ValidateSet('start', 'server', 'rule-execution-service', 'check', 'stop', 'db-console', 'help')]
     [string]$Command = 'start',
 
     [int]$ServerPort = 8080,
@@ -83,7 +83,7 @@ function Wait-Health {
 
 function Start-BackendModule {
     param(
-        [Parameter(Mandatory = $true)][ValidateSet('server', 'runtime')][string]$Name,
+        [Parameter(Mandatory = $true)][ValidateSet('server', 'rule-execution-service')][string]$Name,
         [Parameter(Mandatory = $true)][int]$Port,
         [Parameter(Mandatory = $true)][string]$LogDir
     )
@@ -116,14 +116,14 @@ function Invoke-StartAll {
     $server = Start-BackendModule -Name server -Port $ServerPort -LogDir "$dataDir\logs"
     Wait-Health -Url "http://localhost:$ServerPort/actuator/health" -TimeoutSeconds $HealthTimeoutSeconds
 
-    $runtime = Start-BackendModule -Name runtime -Port $RuntimePort -LogDir "$dataDir\logs"
+    $runtime = Start-BackendModule -Name rule-execution-service -Port $RuntimePort -LogDir "$dataDir\logs"
     Wait-Health -Url "http://localhost:$RuntimePort/actuator/health" -TimeoutSeconds $HealthTimeoutSeconds
 
     Write-Host ""
     Log "[OK] all services started!"
     Write-Host ""
-    Write-Host "  orule-server:  http://localhost:$ServerPort" -ForegroundColor Cyan
-    Write-Host "  orule-runtime: http://localhost:$RuntimePort" -ForegroundColor Cyan
+    Write-Host "  orule-server:                    http://localhost:$ServerPort" -ForegroundColor Cyan
+    Write-Host "  orule-rule-execution-service:    http://localhost:$RuntimePort" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Press Ctrl+C to stop..."
 }
@@ -138,7 +138,7 @@ function Invoke-StartServer {
 function Invoke-StartRuntime {
     Test-Dependencies
     $dataDir = Initialize-DataDirs
-    $runtime = Start-BackendModule -Name runtime -Port $RuntimePort -LogDir "$dataDir\logs"
+    $runtime = Start-BackendModule -Name rule-execution-service -Port $RuntimePort -LogDir "$dataDir\logs"
     Wait-Health -Url "http://localhost:$RuntimePort/actuator/health" -TimeoutSeconds $HealthTimeoutSeconds
 }
 
@@ -201,20 +201,20 @@ Usage:
   .\scripts\dev-start.ps1 [-Command <command>] [-ServerPort <port>] [-RuntimePort <port>]
 
 Commands:
-  start       start server + runtime (default)
-  server      only server
-  runtime     only runtime
-  check       dependency check
-  stop        stop all spring-boot:run processes
-  db-console  open H2 web console in default browser (auto-start server if needed)
-  help        show this help
+  start                      start server + rule-execution-service (default)
+  server                     only server
+  rule-execution-service     only rule-execution-service (was: runtime)
+  check                      dependency check
+  stop                       stop all spring-boot:run processes
+  db-console                 open H2 web console in default browser (auto-start server if needed)
+  help                       show this help
 "@
 }
 
 switch ($Command) {
     'start'      { Invoke-StartAll }
     'server'     { Invoke-StartServer }
-    'runtime'    { Invoke-StartRuntime }
+    'rule-execution-service' { Invoke-StartRuntime }
     'check'      { Invoke-Check }
     'stop'       { Invoke-Stop }
     'db-console' { Invoke-DbConsole }

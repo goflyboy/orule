@@ -3,11 +3,11 @@
 # One-shot launcher for orule local development (Linux / macOS)
 #
 # Usage:
-#   ./scripts/dev-start.sh           # start server + runtime
-#   ./scripts/dev-start.sh server    # only server
-#   ./scripts/dev-start.sh runtime   # only runtime
-#   ./scripts/dev-start.sh check     # dependency check only
-#   ./scripts/dev-start.sh stop      # stop all backend services
+#   ./scripts/dev-start.sh                       # start server + rule-execution-service
+#   ./scripts/dev-start.sh server                # only server
+#   ./scripts/dev-start.sh rule-execution-service # only rule-execution-service
+#   ./scripts/dev-start.sh check                 # dependency check only
+#   ./scripts/dev-start.sh stop                  # stop all backend services
 
 set -e
 
@@ -97,9 +97,10 @@ start_module() {
   local name=$1
   local port=$2
   local log_file=$3
+  local module_dir="${4:-$ROOT_DIR/packages/orule-${name}}"
   log "starting orule-${name} on port ${port}..."
   (
-    cd "$ROOT_DIR/packages/orule-${name}" && \
+    cd "$module_dir" && \
     mvn -q -DskipTests spring-boot:run
   ) > "$log_file" 2>&1 &
   echo $!
@@ -144,7 +145,7 @@ cmd_runtime() {
   local data_dir
   data_dir=$(prepare_dirs)
   local pid
-  pid=$(start_module runtime "$RUNTIME_PORT" "$data_dir/logs/runtime.log")
+  pid=$(start_module rule-execution-service "$RUNTIME_PORT" "$data_dir/logs/rule-execution-service.log")
   wait_for_health "http://localhost:${RUNTIME_PORT}/actuator/health" 60
   echo "$pid"
 }
@@ -159,14 +160,14 @@ cmd_start_all() {
   wait_for_health "http://localhost:${SERVER_PORT}/actuator/health" 60
 
   local runtime_pid
-  runtime_pid=$(start_module runtime "$RUNTIME_PORT" "$data_dir/logs/runtime.log")
+  runtime_pid=$(start_module rule-execution-service "$RUNTIME_PORT" "$data_dir/logs/rule-execution-service.log")
   wait_for_health "http://localhost:${RUNTIME_PORT}/actuator/health" 60
 
   echo ""
   log "[OK] all services started!"
   echo ""
-  echo "  orule-server:  http://localhost:${SERVER_PORT}"
-  echo "  orule-runtime: http://localhost:${RUNTIME_PORT}"
+  echo "  orule-server:                    http://localhost:${SERVER_PORT}"
+  echo "  orule-rule-execution-service:    http://localhost:${RUNTIME_PORT}"
   echo ""
   echo "PIDs: server=$server_pid, runtime=$runtime_pid"
   echo "Logs: $data_dir/logs/"
@@ -186,16 +187,16 @@ Usage:
   $0 [command]
 
 Commands:
-  start    start server + runtime (default)
-  server   only server
-  runtime  only runtime
-  check    dependency check
-  stop     stop all spring-boot:run processes
-  help     show this help
+  start                       start server + rule-execution-service (default)
+  server                      only server
+  rule-execution-service      only rule-execution-service (was: runtime)
+  check                       dependency check
+  stop                        stop all spring-boot:run processes
+  help                        show this help
 
 Environment variables:
   ORULE_SERVER_PORT     server port (default 8080)
-  ORULE_RUNTIME_PORT    runtime port (default 8081)
+  ORULE_RUNTIME_PORT    rule-execution-service port (default 8081)
   ORULE_DATA_DIR        data dir (default $HOME/orule/data)
 EOF
 }
@@ -203,12 +204,12 @@ EOF
 main() {
   local cmd=${1:-start}
   case "$cmd" in
-    start)  cmd_start_all ;;
-    server) cmd_server ;;
-    runtime) cmd_runtime ;;
-    check)  cmd_check ;;
-    stop)   cmd_stop ;;
-    help|-h|--help) cmd_help ;;
+    start)                       cmd_start_all ;;
+    server)                      cmd_server ;;
+    rule-execution-service)      cmd_runtime ;;
+    check)                       cmd_check ;;
+    stop)                        cmd_stop ;;
+    help|-h|--help)              cmd_help ;;
     *) err "unknown command: $cmd (use 'help' to see usage)" ;;
   esac
 }

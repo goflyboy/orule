@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: orule-runtime
+    name: orule-rule-execution-service
 
 management:
   endpoints:
