@@ -9,15 +9,21 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Kafka publisher for rule-set execution completion events
+ * Low-level Kafka publisher for rule-set execution completion events
  * (RFC-0040 §3.12 / TASK-2.3.1).
  *
- * <p>Topic: {@code rule-set-execution-completed}
+ * <p>Topic: {@code rule-set-execution-completed} (configured in application.yml).
+ *
+ * <p>This class is intentionally a thin wrapper around {@link KafkaTemplate} that
+ * (a) serializes via Jackson, (b) swallows non-fatal errors so the calling
+ * worker thread is not aborted by broker hiccups. Higher-level policy —
+ * eventId minting, status mapping, compensation hints — lives in
+ * {@link RuleSetCompletionPublisher}.
  *
  * <p>v0.7 NOTE: this is a thin wrapper around {@link KafkaTemplate} that
- * (a) serializes via Jackson, (b) blocks the calling thread on send so any
- * upstream caller can detect back-pressure. Production should switch to the
- * reactive variant; that work belongs to TASK-3.5.1.
+ * blocks the calling thread on send so any upstream caller can detect
+ * back-pressure. Production should switch to the reactive variant; that work
+ * belongs to TASK-3.5.1.
  */
 @Component
 public class KafkaEventPublisher {
@@ -63,8 +69,8 @@ public class KafkaEventPublisher {
         try {
             String payload = objectMapper.writeValueAsString(event);
             kafkaTemplate.send(topic, event.taskId(), payload);
-            log.info("Published rule-set-completed event: taskId={}, ruleSetCode={}",
-                    event.taskId(), event.ruleSetCode());
+            log.info("Published rule-set-completed event: eventId={}, taskId={}, ruleSetCode={}, status={}",
+                    event.eventId(), event.taskId(), event.ruleSetCode(), event.status());
         } catch (JsonProcessingException e) {
             log.warn("Failed to serialize event: taskId={}, error={}", event.taskId(), e.getMessage());
         } catch (RuntimeException e) {

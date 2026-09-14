@@ -53,10 +53,22 @@ feign:
 orule:
   execution:
     timeout-ms: 30000
+    # 同步 RuleExecutor 线程池（§3.6 TASK-1.2.5），保留为向后兼容键名。
+    # 历史 key：orule.execution.pool.*，新代码不应再引用。
     pool:
       core-size: 16
       max-size: 32
       queue-capacity: 64
+    # 异步 RuleSet 调度线程池（§3.6 / §3.12 / TASK-2.1.1 / TASK-2.1.3），
+    # AsyncThreadPoolConfig 引用此命名空间。
+    async:
+      pool:
+        core-size: 20
+        max-size: 50
+        queue-capacity: 500
+        thread-name-prefix: rule-set-
+        # 默认继续策略：CallerRunsPolicy（§3.6）
+        rejection-policy: CALLER_RUNS
     groovy:
       cache:
         max-size: 1000
