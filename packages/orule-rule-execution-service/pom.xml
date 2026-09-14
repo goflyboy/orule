@@ -140,6 +140,12 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <!-- TASK-2.3.4 消费端测试：用 EmbeddedKafkaBroker 验证 PARTIAL_SUCCESS 补偿触发 -->
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka-test</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
