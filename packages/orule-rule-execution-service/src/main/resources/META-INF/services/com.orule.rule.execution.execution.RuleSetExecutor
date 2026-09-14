@@ -1,0 +1,7 @@
+# JDK ServiceLoader SPI registration file
+# See: ExecutorRegistry.loadRuleSetExecutors()
+#
+# When a concrete RuleSetExecutor implementation is added,
+# uncomment the corresponding line.
+#
+# com.orule.rule.execution.execution.java.JavaSourceRuleSetExecutor

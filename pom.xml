@@ -15,7 +15,7 @@
   <modules>
     <module>packages/orule-common</module>
     <module>packages/orule-server</module>
-    <module>packages/orule-runtime</module>
+    <module>packages/orule-rule-execution-service</module>
     <module>tests/scripts</module>
   </modules>
 
@@ -26,7 +26,14 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
     <spring-boot.version>3.3.4</spring-boot.version>
+    <!-- Spring Cloud 2023.0.x 对应 Spring Boot 3.2.x ~ 3.3.x；2023.0.3 是当前稳定版 -->
+    <spring-cloud.version>2023.0.3</spring-cloud.version>
     <typescript.version>5.6.0</typescript.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <maven.compiler.encoding>UTF-8</maven.compiler.encoding>
     <graaljs.version>24.2.0</graaljs.version>
     <groovy.version>4.0.24</groovy.version>
     <h2.version>2.2.220</h2.version>

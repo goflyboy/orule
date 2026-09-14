@@ -14,7 +14,7 @@ import java.util.Objects;
  * SimpleTS 白名单加载器（RFC-0018 §3.10 + ADR-012-Aprime §4.3）。
  *
  * <p>从 classpath 资源 {@code simplets-whitelist.json} 反序列化为
- * {@link SimpletsWhitelist}，供 orule-runtime Groovy 沙箱启动期使用。
+ * {@link SimpletsWhitelist}，供 orule-rule-execution-service Groovy 沙箱启动期使用。
  *
  * <h2>加载语义</h2>
  * <ul>

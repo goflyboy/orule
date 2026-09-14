@@ -10,7 +10,7 @@ import java.util.List;
  * → 构建期单向同步（{@code scripts/sync-whitelist.mjs}）
  * → 本 JSON（{@code orule-common/src/main/resources/simplets-whitelist.json}）
  * → 启动期 {@link SimpletsWhitelistLoader#fromClasspath()} 加载
- * → orule-runtime Groovy 沙箱 + 校验逻辑 消费。
+ * → orule-rule-execution-service Groovy 沙箱 + 校验逻辑消费。
  *
  * <p><b>Schema 来源</b>：本 record 字段必须与 orule-llm-studio 的
  * {@code exportToJSON()} 返回结构 100% 一致。任何字段新增 / 删除 / 重命名

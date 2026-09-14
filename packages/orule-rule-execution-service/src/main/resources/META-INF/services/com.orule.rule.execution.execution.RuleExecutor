@@ -1,0 +1,8 @@
+# JDK ServiceLoader SPI registration file
+# See: ExecutorRegistry.loadRuleExecutors()
+#
+# When a concrete RuleExecutor implementation (e.g. JavaSourceExecutor) is added,
+# uncomment the corresponding line.  Do NOT commit a file with zero implementations
+# unless the module is intentionally disabled.
+#
+com.orule.rule.execution.execution.java.JavaSourceExecutor
