@@ -119,6 +119,74 @@ public class CustomerServiceSystemTest {
     // ===================================================================
     @Test
     @DisplayName("Sync happy path: POST /api/v1/rule-executions → 200 success=true, log row recorded as SUCCESS")
+    void sync_happyPath_returnsSuccessAndPersistsLogMe() throws Exception {
+        when(ruleMgmt.getRuleMetadata(eq("ORDER_VIP_DISCOUNT"), any(), any(), any()))
+                .thenReturn(new RuleMetadataResponse(
+                        "ORDER_VIP_DISCOUNT",
+                        "RULE_TYPE_DEMO",
+                        "java-source",
+                        // Groovy source (JavaSourceExecutor is Groovy-backed per RFC-0020).
+                        "result = price",
+                        List.of(), List.of(), Map.of()));
+
+        RuleExecutionRequest req = new RuleExecutionRequest(
+                "ORDER_VIP_DISCOUNT", Map.of("price", 11));
+
+        ResponseEntity<JsonNode> resp = postJson(
+                "/api/v1/rule-executions", req, JsonNode.class);
+
+        // ---- Response assertions ----
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode body = resp.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("errorCode").isMissingNode()
+                || body.path("errorCode").isNull()).isTrue();
+        // JavaSourceExecutor returns ALL binding variables; input.x=1 plus rule-set result=42
+        assertThat(body.path("outputContext").path("result").asInt()).isEqualTo(11);
+        assertThat(body.path("outputContext").path("price").asInt()).isEqualTo(11);
+        assertThat(body.path("taskId").asText()).isNotBlank();
+
+        // ---- Log row assertions (RFC-0041 §3.2) ----
+        String taskId = body.path("taskId").asText();
+        var saved = logRepo.findByTaskId(taskId);
+        assertThat(saved).isPresent();
+        var row = saved.get();
+        assertThat(row.getStatus().name()).isEqualTo("SUCCESS");
+        assertThat(row.getExecutionType().name()).isEqualTo("RULE");
+        assertThat(row.getRuleCode()).isEqualTo("ORDER_VIP_DISCOUNT");
+        assertThat(row.getRuleSetCode()).isNull();
+        assertThat(row.getExecutorType()).isEqualTo("java-source");
+        assertThat(row.getTenantId()).isEqualTo(TENANT);
+        assertThat(row.getOperatorId()).isEqualTo(OPERATOR);
+        assertThat(row.getTraceId()).isEqualTo(TRACE);
+        assertThat(row.getStartedAt()).isNotNull();
+        assertThat(row.getFinishedAt()).isNotNull();
+        assertThat(row.getDurationMs()).isNotNull().isGreaterThanOrEqualTo(0L);
+        assertThat(row.getInputContext()).contains("\"price\":11");
+        assertThat(row.getOutputContext()).contains("\"result\":11");
+        assertThat(row.getErrorCode()).isNull();
+        assertThat(row.getErrorMessage()).isNull();
+
+        // ---- Cross-check: GET /api/v1/rule-executions/{taskId}/logs (RFC-0041 §5.1) ----
+        ResponseEntity<JsonNode> logResp = getJson(
+                "/api/v1/rule-executions/" + taskId + "/logs", JsonNode.class);
+        assertThat(logResp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode logBody = logResp.getBody();
+        assertThat(logBody).isNotNull();
+        assertThat(logBody.path("taskId").asText()).isEqualTo(taskId);
+        assertThat(logBody.path("executionType").asText()).isEqualTo("RULE");
+        assertThat(logBody.path("status").asText()).isEqualTo("SUCCESS");
+        assertThat(logBody.path("executorType").asText()).isEqualTo("java-source");
+        assertThat(logBody.path("tenantId").asText()).isEqualTo(TENANT);
+        assertThat(logBody.path("outputContext").path("result").asInt()).isEqualTo(11);
+    }
+
+    // ===================================================================
+    // §3.3.2 #1  Sync single-rule happy path
+    // ===================================================================
+    @Test
+    @DisplayName("Sync happy path: POST /api/v1/rule-executions → 200 success=true, log row recorded as SUCCESS")
     void sync_happyPath_returnsSuccessAndPersistsLog() throws Exception {
         when(ruleMgmt.getRuleMetadata(eq("ORDER_VIP_DISCOUNT"), any(), any(), any()))
                 .thenReturn(new RuleMetadataResponse(
