@@ -1,5 +1,7 @@
 package com.orule.rule.execution.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orule.rule.execution.api.dto.ExecutionInput;
 import com.orule.rule.execution.api.dto.ExecutionMetadata;
 import com.orule.rule.execution.api.dto.ExecutionOutput;
@@ -7,6 +9,9 @@ import com.orule.rule.execution.api.dto.RuleExecutionRequest;
 import com.orule.rule.execution.api.dto.RuleExecutionResponse;
 import com.orule.rule.execution.client.RuleManagermentApiClient;
 import com.orule.rule.execution.client.RuleMetadataResponse;
+import com.orule.rule.execution.domain.ExecutionLog;
+import com.orule.rule.execution.domain.ExecutionLogRepository;
+import com.orule.rule.execution.domain.ExecutionType;
 import com.orule.rule.execution.error.RuleEvalException;
 import com.orule.rule.execution.error.RuleNotFoundException;
 import com.orule.rule.execution.error.RuleRuntimeException;
@@ -16,20 +21,26 @@ import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * Synchronous single-rule execution orchestrator (RFC-0040 §3.5 / TASK-1.3.1).
+ * Synchronous single-rule execution orchestrator (RFC-0040 §3.5 / TASK-1.3.1 + RFC-0041 §3.2).
  *
  * <p>Flow:
  * <ol>
  *   <li>Resolve rule metadata via {@link RuleManagermentApiClient} (Feign).</li>
+ *   <li>Persist a PENDING {@link ExecutionLog} row (RFC-0041 §3.2).</li>
  *   <li>Build {@link ExecutionInput} with the published source code + context.</li>
  *   <li>Delegate to {@link RuleExecutorService#execute(String, ExecutionInput)}.</li>
+ *   <li>Transition the log row to SUCCESS or FAILED.</li>
  *   <li>Map {@link ExecutionOutput} back to {@link RuleExecutionResponse}.</li>
  * </ol>
  *
@@ -45,11 +56,23 @@ public class RuleExecutionApplicationService {
 
     private final RuleExecutorService executorService;
     private final RuleManagermentApiClient ruleMgmt;
+    private final ExecutionLogRepository logRepo;
+    private final ObjectMapper objectMapper;
+    private final TransactionTemplate pendingTxTemplate;
 
     public RuleExecutionApplicationService(RuleExecutorService executorService,
-                                           RuleManagermentApiClient ruleMgmt) {
+                                           RuleManagermentApiClient ruleMgmt,
+                                           ExecutionLogRepository logRepo,
+                                           ObjectMapper objectMapper,
+                                           PlatformTransactionManager txManager) {
         this.executorService = executorService;
         this.ruleMgmt = ruleMgmt;
+        this.logRepo = logRepo;
+        this.objectMapper = objectMapper;
+        // REQUIRES_NEW so the PENDING row is committed even if the outer
+        // transactional context later rolls back. Mirrors RuleSetExecutorServiceImpl.
+        this.pendingTxTemplate = new TransactionTemplate(txManager);
+        this.pendingTxTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @RateLimiter(name = "ruleExecute")
@@ -65,6 +88,7 @@ public class RuleExecutionApplicationService {
                     "MISSING_TENANT_CONTEXT", null);
         }
 
+        String taskId = UUID.randomUUID().toString();
         Instant startedAt = Instant.now();
 
         // 1. Fetch upstream rule metadata.
@@ -81,25 +105,102 @@ public class RuleExecutionApplicationService {
             throw new RuleNotFoundException("rule " + request.ruleCode() + " has no published source");
         }
 
-        // 2. Build ExecutionInput.
+        // 2. Persist PENDING ExecutionLog row (RFC-0041 §3.2) in a brand-new transaction.
+        //    TransactionTemplate avoids Spring self-call AOP pitfalls.
+        ExecutionLog pending = ExecutionLog.pending(
+                taskId,
+                ExecutionType.RULE,
+                request.ruleCode(),
+                /* ruleSetCode */ null,
+                meta.executorType(),
+                tenant.traceId(),
+                tenant.operatorId(),
+                tenant.tenantId());
+        try {
+            pending.setInputContext(serializeContext(request.context()));
+            saveInNewTx(pending);
+        } catch (RuntimeException e) {
+            // Log persistence must never block business execution (RFC-0041 §6).
+            log.warn("Failed to persist PENDING execution_log for task {}: {}",
+                    taskId, e.getMessage());
+        }
+
+        // 3. Mark RUNNING before delegating.
+        try {
+            pending.markRunning();
+            logRepo.save(pending);
+        } catch (RuntimeException e) {
+            log.warn("Failed to mark RUNNING execution_log for task {}: {}", taskId, e.getMessage());
+        }
+
+        // 4. Build ExecutionInput.
         Map<String, Object> ctx = request.context() != null ? request.context() : new LinkedHashMap<>();
         ExecutionMetadata metadata = new ExecutionMetadata(tenant.traceId(), tenant.operatorId(), tenant.tenantId());
         ExecutionInput input = new ExecutionInput(meta.executorType(), meta.sourceCode(), ctx, metadata);
 
-        // 3. Delegate to the executor service (timeout + SPI routing).
-        ExecutionOutput out = executorService.execute(meta.executorType(), input);
+        // 5. Delegate to the executor service (timeout + SPI routing).
+        try {
+            ExecutionOutput out = executorService.execute(meta.executorType(), input);
 
-        Instant executedAt = Instant.now();
-        long durationMs = executedAt.toEpochMilli() - startedAt.toEpochMilli();
+            // 6a. SUCCESS terminal state.
+            try {
+                pending.markSuccess(serializeContext(out.context()));
+                logRepo.save(pending);
+            } catch (RuntimeException e) {
+                log.warn("Failed to persist SUCCESS execution_log for task {}: {}", taskId, e.getMessage());
+            }
 
-        return new RuleExecutionResponse(
-                UUID.randomUUID().toString(),
-                out.success(),
-                out.context(),
-                executedAt,
-                durationMs,
-                out.success() ? null : out.errorCode(),
-                out.success() ? null : out.errorMessage()
-        );
+            Instant executedAt = Instant.now();
+            long durationMs = executedAt.toEpochMilli() - startedAt.toEpochMilli();
+
+            return new RuleExecutionResponse(
+                    taskId,
+                    out.success(),
+                    out.context(),
+                    executedAt,
+                    durationMs,
+                    out.success() ? null : out.errorCode(),
+                    out.success() ? null : out.errorMessage()
+            );
+        } catch (RuleEvalException | RuleRuntimeException | RuleNotFoundException ex) {
+            // 6b. FAILED terminal state — preserve original exception for the handler.
+            try {
+                pending.markFailed(ex.getErrorCode() != null ? ex.getErrorCode() : "RUNTIME_ERROR",
+                        ex.getMessage());
+                logRepo.save(pending);
+            } catch (RuntimeException e) {
+                log.warn("Failed to persist FAILED execution_log for task {}: {}", taskId, e.getMessage());
+            }
+            throw ex;
+        } catch (RuntimeException ex) {
+            // 6c. Any other unexpected exception — mark FAILED and rethrow.
+            try {
+                pending.markFailed("RUNTIME_ERROR", ex.getMessage());
+                logRepo.save(pending);
+            } catch (RuntimeException e) {
+                log.warn("Failed to persist FAILED execution_log for task {}: {}", taskId, e.getMessage());
+            }
+            throw ex;
+        }
+    }
+
+    private void saveInNewTx(ExecutionLog row) {
+        pendingTxTemplate.executeWithoutResult(status -> logRepo.save(row));
+    }
+
+    private String serializeContext(Map<String, Object> ctx) {
+        if (ctx == null || ctx.isEmpty()) {
+            return "{}";
+        }
+        try {
+            return objectMapper.writeValueAsString(ctx);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize context: {}", e.getMessage());
+            try {
+                return objectMapper.writeValueAsString(Collections.emptyMap());
+            } catch (JsonProcessingException fatal) {
+                return "{}";
+            }
+        }
     }
 }

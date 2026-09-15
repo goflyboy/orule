@@ -77,6 +77,11 @@
 - [RFC-0032 ObjectType 枚举化 + Type 系统简化（5 Variant → 4 Variant）](RFC-0032-ObjectType枚举化与Type系统简化.md) — **IMPLEMENTING**
 - [RFC-0033 元数据管理（2）— RuleSetType 与 RuleType（JSON 拍平）](RFC-0033-元数据管理2-RuleSetType与RuleType.md) — DRAFT
 
+## 规则执行服务扩展
+
+- [RFC-0040 规则执行服务](RFC-0040-规则执行服务.md) — DRAFT
+- [RFC-0041 系统级测试（System-Level Test） — 真实 HTTP 服务 + Java 执行器](RFC-0041-系统级测试与执行日志.md) — DRAFT
+
 ## 状态说明
 
 | 状态 | 含义 |
