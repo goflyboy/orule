@@ -1,6 +1,9 @@
 # RFC-0019: SimpleTS → Groovy 代码生成器
 
 > **状态**：DRAFT · **优先级**：P0 · **预计工作量**：4d · **阶段**：S3
+> **RFC-0043 修订**：`let vip: Customer = customersById["alice"]` 生成 `Customer vip = customersById["alice"]`；
+> Map 下标、`get`/`size`/`keySet`、C 风格 `for`；禁止 `.any{}` / closure。脚本前缀注入领域 class/enum。
+> 详见 [RFC-0043 §4.6.3](RFC-0043-嵌套对象List与Map上下文绑定.md)。
 
 ---
 

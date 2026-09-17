@@ -746,7 +746,7 @@ INSERT INTO function_lib (id, program_code, name, signature, description, catego
 |------|------|------|----------|
 | **TD-001：JPA 依赖解耦** | DomainMeta 直接使用 `entity.ObjectType` / `entity.AttributeType`，违反分层原则。SimpleTS 编译器 / Groovy codegen 通过 transitive 依赖引入 Hibernate。 | SimpleTS 模块和 Groovy 模块本不该依赖 JPA，但目前必须依赖。 | 当 SimpleTS 模块被独立复用（如作为 SDK 提供给外部）时启动 |
 | **TD-002：FunctionLib signature 字段扁平化** | `function_lib.signature` 仍是 JSON 列（沿用 RFC-0031），与 `attribute_type` 的 3 列设计不一致。 | 同一种 Type 在两个表中存储形态不同。 | 当 MVP 稳定后重构 |
-| **TD-003：map.value 为 object 的支持** | 当前 `sub_data_type_program_code2` 只能表达 primitive value；若 map 的 value 是 object（如 `map<string, Customer>`），需要增加嵌套表达。 | MVP 限制业务建模。 | RFC-0034（运行时类型检查）一并讨论 |
+| **TD-003：map.value 为 object 的支持** | **RFC-0043 已放开本切片**：`TypeFactory.buildMap` 允许 value 为 object programCode（如 `map<string, Customer>`）。仍不支持 map.value=list、map.key=object。 | 剩余：list-valued map / object key | 见 [RFC-0043 §4.7](RFC-0043-嵌套对象List与Map上下文绑定.md) |
 
 ---
 

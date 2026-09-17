@@ -82,6 +82,8 @@
 - [RFC-0040 规则执行服务](RFC-0040-规则执行服务.md) — DRAFT
 - [RFC-0041 系统级测试（System-Level Test） — 真实 HTTP 服务 + Java 执行器](RFC-0041-系统级测试与执行日志.md) — DRAFT
 - [RFC-0042 系统测试框架（System-Test Framework） — Fluent DSL + 流式比较器](RFC-0042-系统测试框架.md) — DRAFT
+- [RFC-0043 嵌套对象 / List / Map 上下文绑定与属性赋值](RFC-0043-嵌套对象List与Map上下文绑定.md) — DRAFT
+- [RFC-0044 SimpleTS 与 Type 系统配套（嵌套对象 List/Map 上下文绑定）](RFC-0044-SimpleTS与Type系统配套-嵌套对象ListMap上下文绑定.md) — DRAFT（RFC-0043 的语言配套子 RFC）
 
 ## 状态说明
 

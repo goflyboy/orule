@@ -2,7 +2,9 @@
 
 > **状态**：DRAFT · **优先级**：P0 · **预计工作量**：5d · **阶段**：S3
 > **RFC-0031 修订**：DomainMeta 采用 RFC-0031 的 5 个 Variant；`FieldValidator` 需新增
-> "ObjectType/ListType/MapType 字段不可继续访问内部属性" 的校验（详见 RFC-0031 §3.5.2）。
+> "ObjectType 字段不可继续访问内部属性" 的校验（详见 RFC-0031 §3.5.2）。
+> **RFC-0043 修订**：context 根可为 List/Map；新增 `IndexAccess`（仅 Map）；List 用 `get(list, i)`；
+> `DeclareStmt.typeRef` 可引用 ObjectType；禁止闭包。详见 [RFC-0043 §4.6.2](RFC-0043-嵌套对象List与Map上下文绑定.md)。
 
 ---
 

@@ -1,6 +1,6 @@
 # SimpleTS：面向 orule 的 TS 面向对象定制子集
 
-> **文档版本**：v0.2 · 2026-09-12
+> **文档版本**：v0.3 · 2026-09-16（RFC-0043：Map 下标 / typed declare / List 普通函数；仍禁止 lambda）
 > **状态**：草案 · 与 ADR-003 / ADR-002 配合阅读
 > **适用读者**：架构师、规则引擎开发者、规则编写者（业务 + 工程师）
 > **RFC-0032 同步**：§7 新增 ObjectInst（运行时实例）定义
@@ -102,8 +102,9 @@ if (customer.tier == CustomerTier.VIP && order.totalAmount >= 200) {
 }
 ```
 
-> **MVP 嵌套约束**（RFC-0031 §3.5.2）：`object` 类型字段在 SimpleTS 表达式中**不能继续访问内部属性**（即不允许 `customer.address.city`）。
-> 如需跨 entity 访问，必须将字段拍平到顶级 entity；复杂业务由 FunctionLib 承担。
+> **MVP 嵌套约束**（RFC-0031 §3.5.2，**RFC-0043 收窄**）：`object` 类型字段仍不能继续点内部属性（禁止 `customer.address.city`）。
+> RFC-0043 放开：context 根为 `List`/`Map` 时可用普通函数 `get`/`size`/`containsKey`/`keySet` 以及 Map 下标 `customersById["alice"]`；禁止 lambda / `any{}`。
+> 局部变量必须带 ObjectType：`let vip: Customer = customersById["alice"]` → Groovy `Customer vip = ...`。细节见 [RFC-0043](../rfcs/RFC-0043-嵌套对象List与Map上下文绑定.md)。
 
 
 
@@ -206,7 +207,7 @@ typeRef        ::= "string" | "number" | "boolean" | "date" | IDENT
 | **OOP** | class / extends / implements / `this` / `super` / `new`          |
 | **函数式** | 箭头函数、匿名函数、闭包、`function` 声明                                       |
 | **异步**  | `async` / `await` / `Promise` / `setTimeout` / `setInterval`     |
-| **数组**  | 数组字面量 `[1,2]`、解构、展开 `...`、下标访问 `a[0]`                            |
+| **数组**  | 数组字面量 `[1,2]`、解构、展开 `...`、List 下标 `a[0]`（改用 `get(a, i)`，见 RFC-0043） |
 | **异常**  | `try` / `catch` / `throw`                                        |
 | **对象**  | 对象字面量 `{a:1}`、动态键、可选链 `?.`、空值合并 `??`                             |
 | **模块**  | `import` / `export` / `namespace`                                |
@@ -347,8 +348,8 @@ export interface MapType      { kind: 'map';      keyType: Type; valueType: Type
 export type Type = PrimitiveType | ObjectType | ListType | MapType;
 ```
 
-> **MVP 嵌套约束**（RFC-0031 §3.5.2）：`ObjectType` / `ListType` / `MapType` 字段在 SimpleTS 表达式中**不能继续访问内部属性**。
-> 即不允许 `customer.address.city`、`items[0]` 等下钻操作。
+> **MVP 嵌套约束**（RFC-0031 §3.5.2，**RFC-0043 收窄**）：仍禁止 `customer.address.city`（object 字段继续点属性）和 List 下标 `items[0]`。
+> 允许 context 根 List/Map 的普通函数与 Map 下标；见 [RFC-0043 §4.6](../rfcs/RFC-0043-嵌套对象List与Map上下文绑定.md)。
 
 ### 7.2 ObjectInst（运行时实例）
 
