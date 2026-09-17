@@ -23,10 +23,10 @@ import java.util.Map;
  *
  * <p>Pipeline:
  * <ol>
- *   <li>Wrap {@code sourceCode} into a {@code return ...} script.</li>
- *   <li>Bind {@code input.context} as variables.</li>
+ *   <li>Inject Customer/Order class/enum prefix (RFC-0043 section 4.2) if missing.</li>
  *   <li>Compile via {@link GroovyClassCache} (SHA-256 indexed).</li>
- *   <li>Run script; collect variables back into {@link ExecutionOutput#context()}.</li>
+ *   <li>Hydrate top-level {@code customer}/{@code order} maps into prefix classes.</li>
+ *   <li>Bind context as variables, run script, dehydrate output for JSON.</li>
  * </ol>
  *
  * <p>Errors:
@@ -83,7 +83,7 @@ public class JavaSourceExecutor implements RuleExecutor {
         //    v1.0 wraps everything in a script body (Groovy syntax), so the rule
         //    body is expected to assign to variables which we read back via the
         //    binding after execution.
-        String wrapped = wrapSource(input.sourceCode());
+        String wrapped = wrapSource(DomainTypePrefix.apply(input.sourceCode()));
 
         // 3. Compile (or fetch from cache).
         //    Cached Script instances are reused for compile-perf only; we always
@@ -105,10 +105,12 @@ public class JavaSourceExecutor implements RuleExecutor {
             throw new RuleEvalException(ex.getMessage(), ex);
         }
 
-        // 4. Create a fresh Binding per execution; bind input context as script variables.
+        // 4. Create a fresh Binding per execution; hydrate known object slots, then bind.
         Binding binding = new Binding();
-        if (input.context() != null) {
-            input.context().forEach(binding::setVariable);
+        Map<String, Object> boundContext = ContextHydrator.hydrate(
+                input.context(), cachedScript.getClass());
+        if (boundContext != null) {
+            boundContext.forEach(binding::setVariable);
         }
 
         // 5. Run a fresh Script instance: cached parse + new binding == state isolation.
@@ -124,13 +126,13 @@ public class JavaSourceExecutor implements RuleExecutor {
             throw new RuleRuntimeException(ex.getMessage(), ex);
         }
 
-        // 6. Read back all binding variables as the accumulated output context.
+        // 6. Read back all binding variables as JSON-friendly output context.
         Map<String, Object> output = new HashMap<>();
         for (Object keyObj : binding.getVariables().keySet()) {
             String name = (String) keyObj;
             output.put(name, binding.getVariables().get(name));
         }
-        return new ExecutionOutput(output, true, null, null);
+        return new ExecutionOutput(ContextHydrator.dehydrate(output), true, null, null);
     }
 
     private static String wrapSource(String ruleBody) {

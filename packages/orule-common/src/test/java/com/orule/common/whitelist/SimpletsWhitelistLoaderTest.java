@@ -112,7 +112,11 @@ class SimpletsWhitelistLoaderTest {
         assertTrue(wl.unaryOps().contains("!"));
 
         // globalFunctions（10 个）
-        assertEquals(10, wl.globalFunctions().size());
+        assertEquals(15, wl.globalFunctions().size());
+        assertTrue(wl.globalFunctions().contains("get"));
+        assertTrue(wl.globalFunctions().contains("containsKey"));
+        assertTrue(wl.globalFunctions().contains("keySet"));
+        assertTrue(wl.expressionKinds().contains("IndexAccess"));
 
         // methodSignatures：now → LocalDateTime + 无参
         var nowSig = findSig(wl, "now");

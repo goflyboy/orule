@@ -126,4 +126,97 @@ class JavaSourceExecutorTest {
                 .as("JavaSourceExecutor should be auto-registered via META-INF/services SPI")
                 .contains(ExecutorType.JAVA_SOURCE.typeId());
     }
+
+    @Test
+    @DisplayName("RFC-0043: prefix + Customer vip = map compares enum identity")
+    void typedLocal_fromMapComparesEnum() {
+        Map<String, Object> alice = new LinkedHashMap<>();
+        alice.put("name", "alice");
+        alice.put("tier", "VIP");
+        Map<String, Object> byId = new LinkedHashMap<>();
+        byId.put("alice", alice);
+        Map<String, Object> inputCtx = new LinkedHashMap<>();
+        inputCtx.put("customersById", byId);
+
+        ExecutionOutput out = executor.execute(new ExecutionInput(
+                ExecutorType.JAVA_SOURCE.typeId(),
+                """
+                Customer vip = customersById["alice"]
+                matched = (vip.tier == CustomerTier.VIP)
+                """,
+                inputCtx,
+                new ExecutionMetadata("trace-43-1", "user-1", "tenant-1")));
+
+        assertThat(out.success()).isTrue();
+        assertThat(out.context()).containsEntry("matched", true);
+    }
+
+    @Test
+    @DisplayName("RFC-0043: typed local mutation does not write through without assign-back")
+    void typedLocal_copiesWithoutWriteThrough() {
+        Map<String, Object> alice = new LinkedHashMap<>();
+        alice.put("name", "alice");
+        alice.put("tier", "VIP");
+        alice.put("tagged", false);
+        Map<String, Object> byId = new LinkedHashMap<>();
+        byId.put("alice", alice);
+        Map<String, Object> inputCtx = new LinkedHashMap<>();
+        inputCtx.put("customersById", byId);
+
+        ExecutionOutput out = executor.execute(new ExecutionInput(
+                ExecutorType.JAVA_SOURCE.typeId(),
+                """
+                Customer vip = customersById["alice"]
+                vip.tagged = true
+                """,
+                inputCtx,
+                new ExecutionMetadata("trace-43-2", "user-1", "tenant-1")));
+
+        assertThat(out.success()).isTrue();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> outById = (Map<String, Object>) out.context().get("customersById");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> outAlice = (Map<String, Object>) outById.get("alice");
+        assertThat(outAlice.get("tagged")).isEqualTo(false);
+    }
+
+    @Test
+    @DisplayName("RFC-0043: hydrate customer.tier == CustomerTier.VIP without typed local")
+    void hydrate_topLevelCustomerComparesEnum() {
+        Map<String, Object> customer = new LinkedHashMap<>();
+        customer.put("name", "alice");
+        customer.put("tier", "VIP");
+        Map<String, Object> order = new LinkedHashMap<>();
+        order.put("totalAmount", 250);
+        order.put("discount", 0);
+        Map<String, Object> inputCtx = new LinkedHashMap<>();
+        inputCtx.put("customer", customer);
+        inputCtx.put("order", order);
+
+        ExecutionOutput out = executor.execute(new ExecutionInput(
+                ExecutorType.JAVA_SOURCE.typeId(),
+                """
+                if (customer.tier == CustomerTier.VIP && order.totalAmount >= 200) {
+                    order.discount = 30
+                }
+                """,
+                inputCtx,
+                new ExecutionMetadata("trace-43-3", "user-1", "tenant-1")));
+
+        assertThat(out.success()).isTrue();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> outOrder = (Map<String, Object>) out.context().get("order");
+        assertThat(((Number) outOrder.get("discount")).intValue()).isEqualTo(30);
+    }
+
+    @Test
+    @DisplayName("RFC-0043: closure source fails compilation")
+    void closureRejected() {
+        assertThatThrownBy(() -> executor.execute(new ExecutionInput(
+                ExecutorType.JAVA_SOURCE.typeId(),
+                "result = [1,2,3].any { it > 1 }",
+                Map.of(),
+                null)))
+                .isInstanceOf(RuleEvalException.class);
+    }
 }

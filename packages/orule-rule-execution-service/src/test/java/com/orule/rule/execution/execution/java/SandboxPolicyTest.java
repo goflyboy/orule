@@ -155,4 +155,56 @@ class SandboxPolicyTest {
         assertThatThrownBy(() -> SandboxPolicy.BLOCKED_PACKAGES.add("X"))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
+
+    @Nested
+    @DisplayName("RFC-0043 ? class/enum prefix, for, no closure")
+    class NestedObjectPolicy {
+
+        @Test
+        @DisplayName("script-top class and enum are allowed")
+        void classAndEnumAllowed() {
+            Script s = newShell().parse("""
+                    enum CustomerTier { VIP, GOLD }
+                    class Customer { String name; CustomerTier tier }
+                    Customer c = new Customer()
+                    c.tier = CustomerTier.VIP
+                    return c.tier.name()
+                    """);
+            assertThat(s.run()).isEqualTo("VIP");
+        }
+
+        @Test
+        @DisplayName("C-style for is allowed")
+        void forLoopAllowed() {
+            Script s = newShell().parse("""
+                    def acc = 0
+                    for (int i = 0; i < 3; i = i + 1) {
+                        acc = acc + i
+                    }
+                    return acc
+                    """);
+            assertThat(s.run()).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("closure is rejected at compile")
+        void closuresRejected() {
+            assertThatThrownBy(() -> newShell().parse("[1,2,3].any { it > 1 }"))
+                    .isInstanceOf(MultipleCompilationErrorsException.class);
+        }
+
+        @Test
+        @DisplayName("lambda is rejected at compile")
+        void lambdasRejected() {
+            assertThatThrownBy(() -> newShell().parse("[1,2,3].any(x -> x > 1)"))
+                    .isInstanceOf(MultipleCompilationErrorsException.class);
+        }
+
+        @Test
+        @DisplayName("while is still rejected")
+        void whileRejected() {
+            assertThatThrownBy(() -> newShell().parse("while (true) { break }"))
+                    .isInstanceOf(MultipleCompilationErrorsException.class);
+        }
+    }
 }

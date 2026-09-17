@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-09-10T20:00:00Z",
+  "updatedAt": "2026-09-16T00:00:00Z",
   "statementKinds": [
     "IfStmt",
     "ForStmt",
@@ -16,7 +16,8 @@
     "MemberAccess",
     "CallExpr",
     "EnumRef",
-    "Identifier"
+    "Identifier",
+    "IndexAccess"
   ],
   "binaryOps": [
     "+",
@@ -47,7 +48,12 @@
     "startsWith",
     "endsWith",
     "isEmpty",
-    "size"
+    "size",
+    "get",
+    "containsKey",
+    "containsValue",
+    "keySet",
+    "values"
   ],
   "methodSignatures": [
     {
@@ -114,6 +120,44 @@
     {
       "methodName": "size",
       "returnType": "int",
+      "paramTypes": [
+        "java.lang.Object"
+      ]
+    },
+    {
+      "methodName": "get",
+      "returnType": "java.lang.Object",
+      "paramTypes": [
+        "java.lang.Object",
+        "java.lang.Object"
+      ]
+    },
+    {
+      "methodName": "containsKey",
+      "returnType": "boolean",
+      "paramTypes": [
+        "java.lang.Object",
+        "java.lang.Object"
+      ]
+    },
+    {
+      "methodName": "containsValue",
+      "returnType": "boolean",
+      "paramTypes": [
+        "java.lang.Object",
+        "java.lang.Object"
+      ]
+    },
+    {
+      "methodName": "keySet",
+      "returnType": "java.util.List",
+      "paramTypes": [
+        "java.lang.Object"
+      ]
+    },
+    {
+      "methodName": "values",
+      "returnType": "java.util.List",
       "paramTypes": [
         "java.lang.Object"
       ]
