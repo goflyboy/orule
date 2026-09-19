@@ -83,7 +83,9 @@ public class JavaSourceExecutor implements RuleExecutor {
         //    v1.0 wraps everything in a script body (Groovy syntax), so the rule
         //    body is expected to assign to variables which we read back via the
         //    binding after execution.
-        String wrapped = wrapSource(DomainTypePrefix.apply(input.sourceCode()));
+        // RFC-0045 §4.1: prefix is now metadata-driven (or empty if no metadata).
+        String prefix = DomainTypePrefixGenerator.render(input.resolvedObjectTypes());
+        String wrapped = wrapSource(prefix, input.sourceCode());
 
         // 3. Compile (or fetch from cache).
         //    Cached Script instances are reused for compile-perf only; we always
@@ -108,7 +110,7 @@ public class JavaSourceExecutor implements RuleExecutor {
         // 4. Create a fresh Binding per execution; hydrate known object slots, then bind.
         Binding binding = new Binding();
         Map<String, Object> boundContext = ContextHydrator.hydrate(
-                input.context(), cachedScript.getClass());
+                input, cachedScript.getClass());
         if (boundContext != null) {
             boundContext.forEach(binding::setVariable);
         }
@@ -135,12 +137,17 @@ public class JavaSourceExecutor implements RuleExecutor {
         return new ExecutionOutput(ContextHydrator.dehydrate(output), true, null, null);
     }
 
-    private static String wrapSource(String ruleBody) {
-        // Trim and ensure each rule body is treated as a script body.  JavaSourceExecutor
-        // expects the caller (Service) to have already produced "Java-with-Groovy-syntax"
-        // source via RFC-0019 (SimpleTS -> Groovy generator); no further transformation
-        // is required here.
-        return ruleBody.stripLeading();
+    private static String wrapSource(String prefix, String ruleBody) {
+        // RFC-0045 §4.1: prepend the metadata-driven prefix (possibly empty) ahead
+        // of the rule body; the rule body is treated as a script body (Groovy syntax).
+        // JavaSourceExecutor expects the caller (Service) to have already produced
+        // "Java-with-Groovy-syntax" source via RFC-0019 (SimpleTS -> Groovy generator);
+        // no further transformation is required here.
+        String body = ruleBody == null ? "" : ruleBody.stripLeading();
+        if (prefix.isEmpty()) {
+            return body;
+        }
+        return prefix + body;
     }
 
     /**

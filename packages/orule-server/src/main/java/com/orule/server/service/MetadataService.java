@@ -113,6 +113,23 @@ public class MetadataService {
             e.getDescription(), e.getCreatedAt(), e.getUpdatedAt());
     }
 
+    /** RFC-0045 §4.3: 按 (domainCode, programCode) 拉 ObjectType + attributes；缺失抛 NotFoundException。 */
+    @Transactional
+    public ObjectTypeDto findObjectTypeWithAttributesByProgramCode(String domainCode, String programCode) {
+        if (domainCode == null || domainCode.isBlank()) {
+            throw new IllegalArgumentException("domainCode is required");
+        }
+        if (programCode == null || programCode.isBlank()) {
+            throw new IllegalArgumentException("programCode is required");
+        }
+        String domainId = domainRepo.findByProgramCode(domainCode)
+            .orElseThrow(() -> new NotFoundException("DomainType", "programCode=" + domainCode))
+            .getId();
+        ObjectType e = objectRepo.findByDomainCodeAndProgramCode(domainId, programCode)
+            .orElseThrow(() -> new NotFoundException("ObjectType", "domainCode=" + domainCode + ", programCode=" + programCode));
+        return findObjectTypeWithAttributes(e.getId());
+    }
+
     @Transactional
     public ObjectTypeDto createObjectType(CreateObjectTypeRequest req) {
         DomainType domain = domainRepo.findById(req.domainId())

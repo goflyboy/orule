@@ -3,7 +3,7 @@ package com.orule.rule.execution.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orule.rule.execution.RuleExecutionServiceApplication;
 import com.orule.rule.execution.client.RuleManagermentApiClient;
-import com.orule.rule.execution.client.RuleMetadataResponse;
+import com.orule.rule.execution.client.RuleMetadataResponseV2;
 import com.orule.rule.execution.error.RuleRuntimeException;
 import com.orule.rule.execution.execution.ExecutorRegistry;
 import io.github.resilience4j.ratelimiter.RateLimiter;
@@ -60,9 +60,10 @@ class RateLimiterIntegrationTest {
             }
         });
         when(ruleMgmt.getRuleMetadata(any(), any(), any(), any()))
-                .thenReturn(new RuleMetadataResponse(
+                .thenReturn(new RuleMetadataResponseV2(
                         "RATE_TEST", "RULE_TYPE", "java-source",
-                        "ok = true", List.of(), List.of(), Map.of()));
+                        "ok = true", List.of(), List.of(),
+                        null, List.of(), Map.of()));
     }
 
     @Test

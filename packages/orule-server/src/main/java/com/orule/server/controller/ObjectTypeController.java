@@ -33,6 +33,13 @@ public class ObjectTypeController {
         return Result.success(service.findObjectTypeWithAttributes(id));
     }
 
+    /** RFC-0045 §4.3: 按 (domainCode, programCode) 复合键拉 ObjectType + attributes + enumValues。 */
+    @GetMapping("/by-program-code")
+    public Result<ObjectTypeDto> byProgramCode(@RequestParam String domainCode,
+                                               @RequestParam String programCode) {
+        return Result.success(service.findObjectTypeWithAttributesByProgramCode(domainCode, programCode));
+    }
+
     @PostMapping
     public Result<ObjectTypeDto> create(@Valid @RequestBody CreateObjectTypeRequest req) {
         return Result.success(service.createObjectType(req));

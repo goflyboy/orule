@@ -2,13 +2,14 @@ package com.orule.rule.execution.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.orule.common.dto.ObjectTypeDto;
 import com.orule.rule.execution.api.dto.ExecutionInput;
 import com.orule.rule.execution.api.dto.ExecutionMetadata;
 import com.orule.rule.execution.api.dto.ExecutionOutput;
 import com.orule.rule.execution.api.dto.RuleExecutionRequest;
 import com.orule.rule.execution.api.dto.RuleExecutionResponse;
 import com.orule.rule.execution.client.RuleManagermentApiClient;
-import com.orule.rule.execution.client.RuleMetadataResponse;
+import com.orule.rule.execution.client.RuleMetadataResponseV2;
 import com.orule.rule.execution.domain.ExecutionLog;
 import com.orule.rule.execution.domain.ExecutionLogRepository;
 import com.orule.rule.execution.domain.ExecutionType;
@@ -16,6 +17,9 @@ import com.orule.rule.execution.error.RuleEvalException;
 import com.orule.rule.execution.error.RuleNotFoundException;
 import com.orule.rule.execution.error.RuleRuntimeException;
 import com.orule.rule.execution.execution.RuleExecutorService;
+import com.orule.rule.execution.execution.java.metadata.ResolvedObjectType;
+import com.orule.rule.execution.execution.java.metadata.ResolvedObjectTypeMapper;
+import com.orule.rule.execution.security.TenantContext;
 import com.orule.rule.execution.security.TenantContextHolder;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import org.slf4j.Logger;
@@ -26,19 +30,28 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * Synchronous single-rule execution orchestrator (RFC-0040 §3.5 / TASK-1.3.1 + RFC-0041 §3.2).
+ * Synchronous single-rule execution orchestrator
+ * (RFC-0040 §3.5 / TASK-1.3.1 + RFC-0041 §3.2 + RFC-0045 §4.3).
  *
  * <p>Flow:
  * <ol>
- *   <li>Resolve rule metadata via {@link RuleManagermentApiClient} (Feign).</li>
+ *   <li>Resolve rule metadata via {@link RuleManagermentApiClient#getRuleMetadata} (v2).</li>
+ *   <li>For each {@code objectTypeCodes} entry, fetch the ObjectType+attributes via
+ *       {@link RuleManagermentApiClient#getObjectTypeByProgramCode}. Project each
+ *       result to a {@link ResolvedObjectType} via
+ *       {@link ResolvedObjectTypeMapper#project}.</li>
  *   <li>Persist a PENDING {@link ExecutionLog} row (RFC-0041 §3.2).</li>
- *   <li>Build {@link ExecutionInput} with the published source code + context.</li>
+ *   <li>Build {@link ExecutionInput} with the resolved metadata + context.</li>
  *   <li>Delegate to {@link RuleExecutorService#execute(String, ExecutionInput)}.</li>
  *   <li>Transition the log row to SUCCESS or FAILED.</li>
  *   <li>Map {@link ExecutionOutput} back to {@link RuleExecutionResponse}.</li>
@@ -91,8 +104,8 @@ public class RuleExecutionApplicationService {
         String taskId = UUID.randomUUID().toString();
         Instant startedAt = Instant.now();
 
-        // 1. Fetch upstream rule metadata.
-        RuleMetadataResponse meta;
+        // 1. Fetch upstream rule metadata (v2).
+        RuleMetadataResponseV2 meta;
         try {
             meta = ruleMgmt.getRuleMetadata(request.ruleCode(),
                     tenant.tenantId(), tenant.operatorId(), tenant.traceId());
@@ -105,8 +118,10 @@ public class RuleExecutionApplicationService {
             throw new RuleNotFoundException("rule " + request.ruleCode() + " has no published source");
         }
 
-        // 2. Persist PENDING ExecutionLog row (RFC-0041 §3.2) in a brand-new transaction.
-        //    TransactionTemplate avoids Spring self-call AOP pitfalls.
+        // 2. Fetch ObjectType metadata (RFC-0045 §4.3 secondary Feign).
+        List<ResolvedObjectType> resolved = fetchResolvedObjectTypes(meta, tenant);
+
+        // 3. Persist PENDING ExecutionLog row (RFC-0041 §3.2) in a brand-new transaction.
         ExecutionLog pending = ExecutionLog.pending(
                 taskId,
                 ExecutionType.RULE,
@@ -125,7 +140,7 @@ public class RuleExecutionApplicationService {
                     taskId, e.getMessage());
         }
 
-        // 3. Mark RUNNING before delegating.
+        // 4. Mark RUNNING before delegating.
         try {
             pending.markRunning();
             logRepo.save(pending);
@@ -133,16 +148,16 @@ public class RuleExecutionApplicationService {
             log.warn("Failed to mark RUNNING execution_log for task {}: {}", taskId, e.getMessage());
         }
 
-        // 4. Build ExecutionInput.
+        // 5. Build ExecutionInput (with resolvedObjectTypes).
         Map<String, Object> ctx = request.context() != null ? request.context() : new LinkedHashMap<>();
         ExecutionMetadata metadata = new ExecutionMetadata(tenant.traceId(), tenant.operatorId(), tenant.tenantId());
-        ExecutionInput input = new ExecutionInput(meta.executorType(), meta.sourceCode(), ctx, metadata);
+        ExecutionInput input = new ExecutionInput(meta.executorType(), meta.sourceCode(), ctx, metadata, resolved);
 
-        // 5. Delegate to the executor service (timeout + SPI routing).
+        // 6. Delegate to the executor service (timeout + SPI routing).
         try {
             ExecutionOutput out = executorService.execute(meta.executorType(), input);
 
-            // 6a. SUCCESS terminal state.
+            // 7a. SUCCESS terminal state.
             try {
                 pending.markSuccess(serializeContext(out.context()));
                 logRepo.save(pending);
@@ -163,7 +178,7 @@ public class RuleExecutionApplicationService {
                     out.success() ? null : out.errorMessage()
             );
         } catch (RuleEvalException | RuleRuntimeException | RuleNotFoundException ex) {
-            // 6b. FAILED terminal state — preserve original exception for the handler.
+            // 7b. FAILED terminal state — preserve original exception for the handler.
             try {
                 pending.markFailed(ex.getErrorCode() != null ? ex.getErrorCode() : "RUNTIME_ERROR",
                         ex.getMessage());
@@ -173,7 +188,7 @@ public class RuleExecutionApplicationService {
             }
             throw ex;
         } catch (RuntimeException ex) {
-            // 6c. Any other unexpected exception — mark FAILED and rethrow.
+            // 7c. Any other unexpected exception — mark FAILED and rethrow.
             try {
                 pending.markFailed("RUNTIME_ERROR", ex.getMessage());
                 logRepo.save(pending);
@@ -182,6 +197,46 @@ public class RuleExecutionApplicationService {
             }
             throw ex;
         }
+    }
+
+    /**
+     * Fetch each ObjectType referenced by the rule metadata and project to
+     * {@link ResolvedObjectType}. Missing or failed fetches are logged and
+     * skipped — the executor falls back to the verbatim source (RFC-0043
+     * compatibility path) when the list is empty.
+     */
+    List<ResolvedObjectType> fetchResolvedObjectTypes(RuleMetadataResponseV2 meta,
+                                                      TenantContext tenant) {
+        List<String> codes = meta.objectTypeCodes();
+        if (codes == null || codes.isEmpty()) {
+            return List.of();
+        }
+        if (meta.domainCode() == null || meta.domainCode().isBlank()) {
+            log.warn("Rule metadata has objectTypeCodes but missing domainCode; skip prefix generation (ruleCode={})",
+                    meta.ruleCode());
+            return List.of();
+        }
+        // De-duplicate while preserving order (mirrors upstream contract).
+        Set<String> uniq = new LinkedHashSet<>(codes);
+        List<ResolvedObjectType> resolved = new ArrayList<>(uniq.size());
+        for (String code : uniq) {
+            try {
+                ObjectTypeDto dto = ruleMgmt.getObjectTypeByProgramCode(
+                        meta.domainCode(), code,
+                        tenant.tenantId(), tenant.operatorId(), tenant.traceId());
+                if (dto == null) {
+                    log.warn("ObjectType lookup returned null for domainCode={} programCode={}",
+                            meta.domainCode(), code);
+                    continue;
+                }
+                resolved.add(ResolvedObjectTypeMapper.project(dto, /* slotName= */ code));
+            } catch (RuntimeException fe) {
+                log.warn("ObjectType lookup failed for domainCode={} programCode={}: {}",
+                        meta.domainCode(), code, fe.getMessage());
+                // RFC-0045 §8: degrade gracefully; do not block execution.
+            }
+        }
+        return resolved;
     }
 
     private void saveInNewTx(ExecutionLog row) {

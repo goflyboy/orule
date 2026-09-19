@@ -6,7 +6,7 @@ import com.orule.rule.execution.api.dto.RuleExecutionRequest;
 import com.orule.rule.execution.api.dto.RuleExecutionResponse;
 import com.orule.rule.execution.api.error.GlobalExceptionHandler;
 import com.orule.rule.execution.client.RuleManagermentApiClient;
-import com.orule.rule.execution.client.RuleMetadataResponse;
+import com.orule.rule.execution.client.RuleMetadataResponseV2;
 import com.orule.rule.execution.error.RuleRuntimeException;
 import com.orule.rule.execution.execution.ExecutorRegistry;
 import com.orule.rule.execution.execution.RuleExecutorService;
@@ -83,11 +83,12 @@ class RuleExecutionControllerTest {
     @DisplayName("happy path: HTTP 200, success=true, outputContext={result:42}")
     void happyPath() throws Exception {
         when(ruleMgmt.getRuleMetadata(eq("ORDER_VIP_DISCOUNT"), any(), any(), any()))
-                .thenReturn(new RuleMetadataResponse(
+                .thenReturn(new RuleMetadataResponseV2(
                         "ORDER_VIP_DISCOUNT", "RULE_TYPE_DEMO",
                         "java-source",
                         "result = 42",
-                        List.of(), List.of(), Map.of()));
+                        List.of(), List.of(),
+                        null, List.of(), Map.of()));
 
         RuleExecutionRequest req = new RuleExecutionRequest("ORDER_VIP_DISCOUNT", Map.of("x", 1));
         mvc.perform(post("/api/v1/rule-executions")
@@ -108,11 +109,12 @@ class RuleExecutionControllerTest {
     @DisplayName("evaluation failure: HTTP 200, success=false, errorCode=EVAL_FAILED")
     void evalFailed() throws Exception {
         when(ruleMgmt.getRuleMetadata(eq("BAD_RULE"), any(), any(), any()))
-                .thenReturn(new RuleMetadataResponse(
+                .thenReturn(new RuleMetadataResponseV2(
                         "BAD_RULE", "RULE_TYPE_DEMO",
                         "java-source",
                         "this is invalid groovy !!!",
-                        List.of(), List.of(), Map.of()));
+                        List.of(), List.of(),
+                        null, List.of(), Map.of()));
 
         RuleExecutionRequest req = new RuleExecutionRequest("BAD_RULE", Map.of());
         mvc.perform(post("/api/v1/rule-executions")

@@ -7,7 +7,7 @@ import com.orule.rule.execution.api.dto.ExecutionMetadata;
 import com.orule.rule.execution.api.dto.ExecutionOutput;
 import com.orule.rule.execution.api.dto.RuleSetExecutionRequest;
 import com.orule.rule.execution.client.RuleManagermentApiClient;
-import com.orule.rule.execution.client.RuleMetadataResponse;
+import com.orule.rule.execution.client.RuleMetadataResponseV2;
 import com.orule.rule.execution.domain.ExecutionLog;
 import com.orule.rule.execution.domain.ExecutionLogRepository;
 import com.orule.rule.execution.domain.ExecutionType;
@@ -162,7 +162,7 @@ public class RuleSetExecutorServiceImpl implements RuleSetExecutorService {
         for (String ruleCode : rulesInSet) {
             totalCount++;
             try {
-                RuleMetadataResponse meta = ruleMgmt.getRuleMetadata(
+                RuleMetadataResponseV2 meta = ruleMgmt.getRuleMetadata(
                         ruleCode,
                         tenantOrEmpty(tenant, "tenantId"),
                         tenantOrEmpty(tenant, "operatorId"),

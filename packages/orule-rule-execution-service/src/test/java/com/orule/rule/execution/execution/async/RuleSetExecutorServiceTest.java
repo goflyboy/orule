@@ -3,7 +3,7 @@ package com.orule.rule.execution.execution.async;
 import com.orule.rule.execution.api.dto.ExecutionOutput;
 import com.orule.rule.execution.api.dto.RuleSetExecutionRequest;
 import com.orule.rule.execution.client.RuleManagermentApiClient;
-import com.orule.rule.execution.client.RuleMetadataResponse;
+import com.orule.rule.execution.client.RuleMetadataResponseV2;
 import com.orule.rule.execution.domain.ExecutionLog;
 import com.orule.rule.execution.domain.ExecutionLogRepository;
 import com.orule.rule.execution.domain.ExecutionType;
@@ -74,11 +74,12 @@ class RuleSetExecutorServiceTest {
             }
         });
         when(ruleMgmt.getRuleMetadata(anyString(), anyString(), anyString(), any()))
-                .thenReturn(new RuleMetadataResponse(
+                .thenReturn(new RuleMetadataResponseV2(
                         "ORDER_PROMOTION_SUITE", "RULE_TYPE",
                         "rule-set-executor",
                         "processed = true",
-                        List.of(), List.of(), Map.of()));
+                        List.of(), List.of(),
+                        null, List.of(), Map.of()));
 
         // Mock the PENDING log row the worker will reload by taskId.
         // Returning Optional.empty() makes the worker early-exit without calling the publisher.

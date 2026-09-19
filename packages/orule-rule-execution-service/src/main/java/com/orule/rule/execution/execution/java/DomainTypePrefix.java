@@ -1,50 +1,20 @@
 package com.orule.rule.execution.execution.java;
 
 /**
- * Groovy source prefix for the Customer/Order demo domain (RFC-0043 ?4.2).
+ * Legacy hard-coded Customer/Order demo domain prefix.
  *
- * <p>v0.2 injects this text ahead of the rule body so {@code Customer vip = ...}
- * and {@code CustomerTier.VIP} compile inside the Groovy sandbox. This is not a
- * generic ObjectType code generator.
+ * <p>RFC-0045 v0.2 (s1a) retired the {@code CUSTOMER_ORDER} literal and the
+ * {@link #apply(String)} helper. Production path now goes through
+ * {@link DomainTypePrefixGenerator#render(java.util.List)}.
+ *
+ * <p>This class is kept as an empty shell for v0.2 to avoid breaking any
+ * stray references; it will be deleted in the v0.3 cleanup PR.
+ *
+ * @deprecated since RFC-0045 v0.2; will be removed in v0.3. Use
+ *             {@link DomainTypePrefixGenerator} instead.
  */
+@Deprecated(forRemoval = true, since = "RFC-0045-v0.2")
 public final class DomainTypePrefix {
 
-    /**
-     * Script-level enum/class definitions isomorphic with
-     * {@code ComplexServiceFrameworkedSystemTest} POJOs.
-     */
-    public static final String CUSTOMER_ORDER = """
-            enum CustomerTier { VIP, GOLD, SILVER, BRONZE }
-
-            class Customer {
-                String name
-                CustomerTier tier
-                Boolean tagged
-            }
-
-            class Order {
-                Integer totalAmount
-                Integer discount
-            }
-
-            """;
-
     private DomainTypePrefix() {}
-
-    /**
-     * Prepend the Customer/Order prefix unless the source already defines it.
-     * Tests may inline the same prefix to lock the execution contract; the
-     * executor must not emit duplicate class declarations.
-     */
-    public static String apply(String ruleBody) {
-        if (ruleBody == null) {
-            return CUSTOMER_ORDER;
-        }
-        String body = ruleBody.stripLeading();
-        if (body.contains("enum CustomerTier") && body.contains("class Customer")
-                && body.contains("class Order")) {
-            return body;
-        }
-        return CUSTOMER_ORDER + body;
-    }
 }

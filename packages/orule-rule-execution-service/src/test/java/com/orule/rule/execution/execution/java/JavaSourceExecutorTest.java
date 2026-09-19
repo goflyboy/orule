@@ -128,7 +128,7 @@ class JavaSourceExecutorTest {
     }
 
     @Test
-    @DisplayName("RFC-0043: prefix + Customer vip = map compares enum identity")
+    @DisplayName("RFC-0043 + RFC-0045: prefix + Customer vip = map compares enum identity")
     void typedLocal_fromMapComparesEnum() {
         Map<String, Object> alice = new LinkedHashMap<>();
         alice.put("name", "alice");
@@ -145,7 +145,8 @@ class JavaSourceExecutorTest {
                 matched = (vip.tier == CustomerTier.VIP)
                 """,
                 inputCtx,
-                new ExecutionMetadata("trace-43-1", "user-1", "tenant-1")));
+                new ExecutionMetadata("trace-43-1", "user-1", "tenant-1"),
+                com.orule.rule.execution.execution.java.metadata.ResolvedObjectTestFixtures.customerOrderTier()));
 
         assertThat(out.success()).isTrue();
         assertThat(out.context()).containsEntry("matched", true);
@@ -170,7 +171,8 @@ class JavaSourceExecutorTest {
                 vip.tagged = true
                 """,
                 inputCtx,
-                new ExecutionMetadata("trace-43-2", "user-1", "tenant-1")));
+                new ExecutionMetadata("trace-43-2", "user-1", "tenant-1"),
+                com.orule.rule.execution.execution.java.metadata.ResolvedObjectTestFixtures.customerOrderTier()));
 
         assertThat(out.success()).isTrue();
         @SuppressWarnings("unchecked")
@@ -181,7 +183,7 @@ class JavaSourceExecutorTest {
     }
 
     @Test
-    @DisplayName("RFC-0043: hydrate customer.tier == CustomerTier.VIP without typed local")
+    @DisplayName("RFC-0043 + RFC-0045: hydrate customer.tier == CustomerTier.VIP without typed local")
     void hydrate_topLevelCustomerComparesEnum() {
         Map<String, Object> customer = new LinkedHashMap<>();
         customer.put("name", "alice");
@@ -201,7 +203,8 @@ class JavaSourceExecutorTest {
                 }
                 """,
                 inputCtx,
-                new ExecutionMetadata("trace-43-3", "user-1", "tenant-1")));
+                new ExecutionMetadata("trace-43-3", "user-1", "tenant-1"),
+                com.orule.rule.execution.execution.java.metadata.ResolvedObjectTestFixtures.customerOrderTier()));
 
         assertThat(out.success()).isTrue();
         @SuppressWarnings("unchecked")

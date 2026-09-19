@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orule.rule.execution.RuleExecutionServiceApplication;
 import com.orule.rule.execution.api.dto.RuleExecutionRequest;
 import com.orule.rule.execution.client.RuleManagermentApiClient;
-import com.orule.rule.execution.client.RuleMetadataResponse;
+import com.orule.rule.execution.client.RuleMetadataResponseV2;
 import com.orule.rule.execution.domain.ExecutionLogRepository;
 import com.orule.rule.execution.events.RuleSetCompletionPublisher;
 import org.junit.jupiter.api.AfterEach;
@@ -121,13 +121,13 @@ public class CustomerServiceSystemTest {
     @DisplayName("Sync happy path: POST /api/v1/rule-executions → 200 success=true, log row recorded as SUCCESS")
     void sync_happyPath_returnsSuccessAndPersistsLogMe() throws Exception {
         when(ruleMgmt.getRuleMetadata(eq("ORDER_VIP_DISCOUNT"), any(), any(), any()))
-                .thenReturn(new RuleMetadataResponse(
+                .thenReturn(new RuleMetadataResponseV2(
                         "ORDER_VIP_DISCOUNT",
                         "RULE_TYPE_DEMO",
                         "java-source",
                         // Groovy source (JavaSourceExecutor is Groovy-backed per RFC-0020).
                         "result = price",
-                        List.of(), List.of(), Map.of()));
+                        List.of(), List.of(), null, List.of(), Map.of()));
 
         RuleExecutionRequest req = new RuleExecutionRequest(
                 "ORDER_VIP_DISCOUNT", Map.of("price", 11));
@@ -189,13 +189,13 @@ public class CustomerServiceSystemTest {
     @DisplayName("Sync happy path: POST /api/v1/rule-executions → 200 success=true, log row recorded as SUCCESS")
     void sync_happyPath_returnsSuccessAndPersistsLog() throws Exception {
         when(ruleMgmt.getRuleMetadata(eq("ORDER_VIP_DISCOUNT"), any(), any(), any()))
-                .thenReturn(new RuleMetadataResponse(
+                .thenReturn(new RuleMetadataResponseV2(
                         "ORDER_VIP_DISCOUNT",
                         "RULE_TYPE_DEMO",
                         "java-source",
                         // Groovy source (JavaSourceExecutor is Groovy-backed per RFC-0020).
                         "result = 42",
-                        List.of(), List.of(), Map.of()));
+                        List.of(), List.of(), null, List.of(), Map.of()));
 
         RuleExecutionRequest req = new RuleExecutionRequest(
                 "ORDER_VIP_DISCOUNT", Map.of("x", 1));
@@ -257,12 +257,12 @@ public class CustomerServiceSystemTest {
     @DisplayName("Sync eval-fail: success=false, errorCode=EVAL_FAILED, log row marked FAILED with EVAL_FAILED")
     void sync_evalFailure_returns200WithEvalFailedAndPersistsFailedLog() {
         when(ruleMgmt.getRuleMetadata(eq("BAD_RULE"), any(), any(), any()))
-                .thenReturn(new RuleMetadataResponse(
+                .thenReturn(new RuleMetadataResponseV2(
                         "BAD_RULE",
                         "RULE_TYPE_DEMO",
                         "java-source",
                         "this is invalid groovy !!!",
-                        List.of(), List.of(), Map.of()));
+                        List.of(), List.of(), null, List.of(), Map.of()));
 
         RuleExecutionRequest req = new RuleExecutionRequest("BAD_RULE", Map.of("x", 1));
 
@@ -303,12 +303,12 @@ public class CustomerServiceSystemTest {
     @DisplayName("Sync runtime error: success=false, errorCode=RUNTIME_ERROR, log row marked FAILED with RUNTIME_ERROR")
     void sync_runtimeError_returns200WithRuntimeErrorAndPersistsFailedLog() {
         when(ruleMgmt.getRuleMetadata(eq("BOOM_RULE"), any(), any(), any()))
-                .thenReturn(new RuleMetadataResponse(
+                .thenReturn(new RuleMetadataResponseV2(
                         "BOOM_RULE",
                         "RULE_TYPE_DEMO",
                         "java-source",
                         "throw new RuntimeException(\"boom\")",
-                        List.of(), List.of(), Map.of()));
+                        List.of(), List.of(), null, List.of(), Map.of()));
 
         RuleExecutionRequest req = new RuleExecutionRequest("BOOM_RULE", Map.of("x", 1));
 
@@ -366,12 +366,12 @@ public class CustomerServiceSystemTest {
     @DisplayName("RuleSet async: submit → poll → terminal SUCCESS with executor running for real")
     void ruleSet_async_happyPath_persistsSuccessLog() throws Exception {
         when(ruleMgmt.getRuleMetadata(eq("ORDER_PROMOTION_SUITE"), any(), any(), any()))
-                .thenReturn(new RuleMetadataResponse(
+                .thenReturn(new RuleMetadataResponseV2(
                         "ORDER_PROMOTION_SUITE",
                         "RULE_TYPE_DEMO",
                         "java-source",
                         "discount = order_amount * 0.1\nprocessed = true",
-                        List.of(), List.of(), Map.of()));
+                        List.of(), List.of(), null, List.of(), Map.of()));
 
         // RuleSet submit body
         Map<String, Object> req = Map.of(
@@ -439,12 +439,12 @@ public class CustomerServiceSystemTest {
     @DisplayName("RuleSet rule fails: terminal FAILED with errorCode populated in log")
     void ruleSet_async_ruleFails_persistsFailedLog() throws Exception {
         when(ruleMgmt.getRuleMetadata(eq("BAD_RULE_SET"), any(), any(), any()))
-                .thenReturn(new RuleMetadataResponse(
+                .thenReturn(new RuleMetadataResponseV2(
                         "BAD_RULE_SET",
                         "RULE_TYPE_DEMO",
                         "java-source",
                         "this is invalid groovy !!!",
-                        List.of(), List.of(), Map.of()));
+                        List.of(), List.of(), null, List.of(), Map.of()));
 
         Map<String, Object> req = Map.of(
                 "ruleSetCode", "BAD_RULE_SET",

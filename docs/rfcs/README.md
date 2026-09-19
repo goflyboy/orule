@@ -84,6 +84,7 @@
 - [RFC-0042 系统测试框架（System-Test Framework） — Fluent DSL + 流式比较器](RFC-0042-系统测试框架.md) — DRAFT
 - [RFC-0043 嵌套对象 / List / Map 上下文绑定与属性赋值](RFC-0043-嵌套对象List与Map上下文绑定.md) — DRAFT
 - [RFC-0044 SimpleTS 与 Type 系统配套（嵌套对象 List/Map 上下文绑定）](RFC-0044-SimpleTS与Type系统配套-嵌套对象ListMap上下文绑定.md) — DRAFT（RFC-0043 的语言配套子 RFC）
+- [RFC-0045 元数据驱动的执行器领域类型注入](RFC-0045-元数据驱动的执行器领域类型注入.md) — DRAFT（落地 RFC-0043 §4.2 与 §9 T-5；`DomainTypePrefix.CUSTOMER_ORDER` 标 `@Deprecated`；`orule-server` 同期新增 `GET /api/v1/object-types/by-program-code`；`RuleMetadataResponse` 升 v2 record）
 
 ## 状态说明
 

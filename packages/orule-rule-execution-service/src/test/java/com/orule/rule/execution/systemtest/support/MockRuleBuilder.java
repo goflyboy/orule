@@ -1,8 +1,13 @@
 package com.orule.rule.execution.systemtest.support;
 
+import com.orule.common.dto.ObjectTypeDto;
+import com.orule.common.dto.ObjectTypeDto.EnumValueDto;
 import com.orule.rule.execution.client.RuleManagermentApiClient;
-import com.orule.rule.execution.client.RuleMetadataResponse;
+import com.orule.rule.execution.client.RuleMetadataResponseV2;
+import com.orule.rule.execution.execution.java.metadata.ResolvedObjectType;
+import com.orule.rule.execution.execution.java.metadata.ResolvedObjectTypeMapper;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -11,13 +16,15 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 /**
- * Fluent mock configuration for {@link RuleManagermentApiClient#getRuleMetadata}.
+ * Fluent mock configuration for {@link RuleManagermentApiClient}.
  *
  * <p>Used via {@link RuleExecutionSystemTestBase#mockRule(String)}:
  *
  * <pre>{@code
  * mockRule("ORDER_VIP_DISCOUNT")
- *     .withType("java-source")
+ *     .withDomainCode("ORDER")
+ *     .withObjectTypeCodes("Customer", "Order", "CustomerTier")
+ *     .withResolvedObjectTypes(metadataFixtureForOrder())
  *     .withSource("result = price * 2");
  * }</pre>
  *
@@ -26,7 +33,7 @@ import static org.mockito.Mockito.when;
  * directly is also fine and returns the rule code.
  *
  * <p>Defaults: executorType="java-source", ruleTypeCode="RULE_TYPE_DEMO",
- * paramMetadata and dependencies empty.
+ * domainCode=null, objectTypeCodes=[].
  */
 public class MockRuleBuilder {
 
@@ -35,8 +42,9 @@ public class MockRuleBuilder {
     private String executorType = "java-source";
     private String sourceCode = "";
     private String ruleTypeCode = "RULE_TYPE_DEMO";
-    private List<?> paramMetadata = List.of();
-    private List<?> dependencies = List.of();
+    private String domainCode = null;
+    private List<String> objectTypeCodes = new ArrayList<>();
+    private List<ResolvedObjectType> resolvedObjectTypes = new ArrayList<>();
     private Map<String, Object> extras = Map.of();
 
     MockRuleBuilder(RuleManagermentApiClient client, String ruleCode) {
@@ -59,13 +67,31 @@ public class MockRuleBuilder {
         return this;
     }
 
-    public MockRuleBuilder withParamMetadata(List<?> paramMetadata) {
-        this.paramMetadata = paramMetadata;
+    public MockRuleBuilder withDomainCode(String domainCode) {
+        this.domainCode = domainCode;
         return this;
     }
 
-    public MockRuleBuilder withDependencies(List<?> dependencies) {
-        this.dependencies = dependencies;
+    public MockRuleBuilder withObjectTypeCodes(List<String> objectTypeCodes) {
+        this.objectTypeCodes = objectTypeCodes == null ? new ArrayList<>() : new ArrayList<>(objectTypeCodes);
+        return this;
+    }
+
+    /**
+     * Attach resolved ObjectType metadata that the execution service should
+     * pretend to have fetched from {@code GET /api/v1/object-types/by-program-code}.
+     * Stubs the secondary Feign call accordingly.
+     */
+    public MockRuleBuilder withResolvedObjectTypes(List<ResolvedObjectType> resolved) {
+        this.resolvedObjectTypes = resolved == null ? new ArrayList<>() : new ArrayList<>(resolved);
+        // Mirror objectTypeCodes from resolved.programCode for transparency.
+        List<String> codes = new ArrayList<>();
+        for (ResolvedObjectType ot : this.resolvedObjectTypes) {
+            if (ot != null && ot.programCode() != null) {
+                codes.add(ot.programCode());
+            }
+        }
+        this.objectTypeCodes = codes;
         return this;
     }
 
@@ -75,20 +101,76 @@ public class MockRuleBuilder {
     }
 
     /**
-     * Builds the {@link RuleMetadataResponse} mock and stubs the Feign call.
+     * Builds the {@link RuleMetadataResponseV2} mock and stubs the Feign call.
      * Idempotent; safe to call multiple times.
      */
     public String install() {
-        RuleMetadataResponse meta = new RuleMetadataResponse(
+        RuleMetadataResponseV2 meta = new RuleMetadataResponseV2(
                 ruleCode,
                 ruleTypeCode,
                 executorType,
                 sourceCode,
-                (List<String>) paramMetadata,
-                (List<String>) dependencies,
+                List.of(),
+                List.of(),
+                domainCode,
+                List.copyOf(objectTypeCodes),
                 extras);
         when(client.getRuleMetadata(eq(ruleCode), any(), any(), any()))
                 .thenReturn(meta);
+
+        // Stub the secondary Feign call. Use the resolved fixtures directly so the
+        // execution service can short-circuit and avoid network in tests.
+        for (ResolvedObjectType ot : resolvedObjectTypes) {
+            if (ot == null || ot.programCode() == null) {
+                continue;
+            }
+            ObjectTypeDto dto = toDto(ot);
+            // Match by (domainCode, programCode) since that's what the service calls.
+            try {
+                when(client.getObjectTypeByProgramCode(
+                        eq(domainCode == null ? "" : domainCode),
+                        eq(ot.programCode()),
+                        any(), any(), any()))
+                        .thenReturn(dto);
+            } catch (RuntimeException ignored) {
+                // MockingWire mock failure is non-fatal here; we still emit metadata.
+            }
+        }
         return ruleCode;
+    }
+
+    /** Project a ResolvedObjectType back into an ObjectTypeDto so we can stub the Feign call. */
+    private static ObjectTypeDto toDto(ResolvedObjectType ot) {
+        List<EnumValueDto> enums = new ArrayList<>();
+        for (ResolvedObjectType.EnumValue v : ot.enumValues()) {
+            enums.add(new EnumValueDto(v.code(), v.label(), v.sortOrder()));
+        }
+        List<com.orule.common.dto.AttributeTypeDto> attrs = new ArrayList<>();
+        for (ResolvedObjectType.ResolvedAttribute a : ot.attributes()) {
+            attrs.add(new com.orule.common.dto.AttributeTypeDto(
+                    null,
+                    null,
+                    a.programCode(),
+                    a.name(),
+                    a.dataType(),
+                    a.refCode(),
+                    a.refCode2(),
+                    false,
+                    null,
+                    null,
+                    null));
+        }
+        String kind = ot.kind() == null ? "CLASS" : ot.kind();
+        return new ObjectTypeDto(
+                null,
+                null,
+                ot.programCode(),
+                ot.programCode(),
+                kind,
+                attrs,
+                enums,
+                null,
+                null,
+                null);
     }
 }
