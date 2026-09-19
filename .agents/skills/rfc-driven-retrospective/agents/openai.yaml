@@ -1,0 +1,4 @@
+interface:
+  display_name: "RFC driven 复盘"
+  short_description: "RFC 开发后的缺失知识、流程护栏与 skill 改进复盘"
+  default_prompt: "使用 $rfc-driven-retrospective 对这次 RFC 开发做复盘，列出缺失知识和改进方向。"
